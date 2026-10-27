@@ -42,6 +42,11 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
     
     String category = existing?.category ?? 'Xây dựng công trình';
     String status = existing?.status ?? 'Đang tuyển';
+    String? selectedFacultyId = existing?.facultyId;
+    bool isNearCampus = existing?.isNearCampus ?? false;
+    final distanceCtrl = TextEditingController(
+      text: existing?.distanceFromCampusKm != null ? '${existing!.distanceFromCampusKm}' : '0.8',
+    );
     DateTime startDate = existing?.startDate ?? DateTime.now().add(const Duration(days: 2));
     DateTime endDate = existing?.endDate ?? DateTime.now().add(const Duration(days: 15));
     final dateFormat = DateFormat('dd/MM/yyyy');
@@ -186,6 +191,54 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                         ],
                       ),
                       const SizedBox(height: 10),
+                      // Chọn Khoa / Viện tổ chức
+                      DropdownButtonFormField<String?>(
+                        initialValue: selectedFacultyId,
+                        decoration: const InputDecoration(labelText: 'Khoa / Viện tổ chức *'),
+                        items: [
+                          const DropdownMenuItem<String?>(value: null, child: Text('Chung Toàn Trường / Ban Chỉ Huy')),
+                          ..._dataService.faculties.map((f) => DropdownMenuItem<String?>(
+                            value: f.id,
+                            child: Text('${f.name} (${f.code})'),
+                          )),
+                        ],
+                        onChanged: (val) => setDialogState(() => selectedFacultyId = val),
+                      ),
+                      const SizedBox(height: 10),
+                      // Switch Hoạt động gần trường
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isNearCampus ? Colors.red.shade50 : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: isNearCampus ? Colors.red.shade200 : Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          children: [
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Hoạt động gần trường (< 5km)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              subtitle: const Text('Diễn ra tại trường hoặc phường lân cận', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                              value: isNearCampus,
+                              onChanged: (val) => setDialogState(() => isNearCampus = val),
+                            ),
+                            if (isNearCampus) ...[
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: distanceCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  labelText: 'Khoảng cách từ cổng trường (km)',
+                                  hintText: 'VD: 0.6',
+                                  prefixIcon: Icon(Icons.near_me, size: 18),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       TextField(
                         controller: descCtrl,
                         maxLines: 2,
@@ -215,6 +268,12 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                       return;
                     }
 
+                    String? facultyName;
+                    if (selectedFacultyId != null) {
+                      final f = _dataService.faculties.where((fac) => fac.id == selectedFacultyId);
+                      if (f.isNotEmpty) facultyName = f.first.name;
+                    }
+
                     final campaign = Campaign(
                       id: existing?.id ?? 'camp_${DateTime.now().millisecondsSinceEpoch}',
                       title: titleCtrl.text.trim(),
@@ -233,6 +292,10 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                       volunteerHours: int.tryParse(hoursCtrl.text) ?? 40,
                       trainingPoints: int.tryParse(pointsCtrl.text) ?? 15,
                       status: status,
+                      facultyId: selectedFacultyId,
+                      facultyName: facultyName,
+                      isNearCampus: isNearCampus,
+                      distanceFromCampusKm: isNearCampus ? double.tryParse(distanceCtrl.text) : (double.tryParse(distanceCtrl.text) ?? 60.0),
                     );
 
                     _dataService.saveCampaign(campaign);
@@ -341,6 +404,41 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (camp.facultyName != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.blue.shade200),
+                                ),
+                                child: Text(
+                                  camp.facultyName!,
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.youthBlue),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            if (camp.isNearCampus) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.red.shade200),
+                                ),
+                                child: Text(
+                                  '📍 Gần trường (${camp.distanceFromCampusKm ?? 0.8} km)',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                          ],
+                        ),
                         const SizedBox(height: 4),
                         Row(
                           children: [

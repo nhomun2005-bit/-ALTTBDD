@@ -93,7 +93,7 @@ class AdminExportScreen extends StatelessWidget {
           // III. BẢNG CHI TIẾT
           pw.Text('III. BẢNG THỐNG KÊ CHI TIẾT CÁC MẶT TRẬN', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
           pw.SizedBox(height: 6),
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: ['STT', 'Tên Chiến Dịch', 'Địa Bàn', 'Thời Gian', 'Tuyển', 'Kinh Phí'],
             data: dataService.campaigns.asMap().entries.map((entry) {
               final idx = entry.key;

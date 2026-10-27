@@ -1,0 +1,459 @@
+{
+  "system_info": {
+    "appName": "Hệ Thống Quản Lý Chiến Dịch Tình Nguyện Mùa Hè Xanh",
+    "version": "1.0.0",
+    "universityCampusAddress": "Số 1 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh",
+    "description": "Cơ sở dữ liệu thời gian thực cho ứng dụng Mùa Hè Xanh, quản lý chiến dịch, sinh viên tình nguyện, đăng ký, báo cáo minh chứng và hậu cần ngân sách.",
+    "createdAt": "2026-10-27T12:00:00.000Z"
+  },
+  "volunteers": {
+    "vol_001": {
+      "id": "vol_001",
+      "studentId": "22120098",
+      "fullName": "Nguyễn Văn An",
+      "email": "an.nguyen@sinhvien.edu.vn",
+      "phone": "0987654321",
+      "faculty": "Khoa Công nghệ Thông tin & TT",
+      "teamName": "Đội hình Chuyển đổi số & Dạy tin học",
+      "bloodType": "O",
+      "skills": "Tin học văn phòng, Lắp ráp mạng, Hướng dẫn dịch vụ công trực tuyến",
+      "totalHours": 42,
+      "totalPoints": 18,
+      "completedActivities": 2
+    },
+    "vol_002": {
+      "id": "vol_002",
+      "studentId": "22145012",
+      "fullName": "Trần Thị Mai",
+      "email": "mai.tran@sinhvien.edu.vn",
+      "phone": "0912345678",
+      "faculty": "Khoa Y Dược & Sức Khỏe",
+      "teamName": "Đội Hậu cần & Y tế cơ sở",
+      "bloodType": "B",
+      "skills": "Sơ cấp cứu, Đo huyết áp, Cấp phát thuốc, Nấu ăn dã chiến",
+      "totalHours": 25,
+      "totalPoints": 10,
+      "completedActivities": 1
+    },
+    "vol_003": {
+      "id": "vol_003",
+      "studentId": "21110034",
+      "fullName": "Lê Hoàng Long",
+      "email": "long.le@sinhvien.edu.vn",
+      "phone": "0903112233",
+      "faculty": "Khoa Kỹ thuật Xây dựng",
+      "teamName": "Đội Công trình giao thông",
+      "bloodType": "A",
+      "skills": "Thi công cốt thép, Trộn bê tông, Đọc bản vẽ công trình",
+      "totalHours": 50,
+      "totalPoints": 20,
+      "completedActivities": 3
+    }
+  },
+  "faculties": {
+    "fac_001": {
+      "id": "fac_001",
+      "code": "CNTT",
+      "name": "Khoa Công nghệ Thông tin & TT",
+      "description": "Phụ trách mũi nhọn Chuyển đổi số, phổ cập tin học cộng đồng và dịch vụ công trực tuyến.",
+      "leaderName": "TS. Nguyễn Văn Bình - Bí thư Đoàn khoa",
+      "contactPhone": "0903123456",
+      "colorValue": 4280199401
+    },
+    "fac_002": {
+      "id": "fac_002",
+      "code": "KTXD",
+      "name": "Khoa Kỹ thuật Xây dựng",
+      "description": "Chuyên trách các công trình cầu giao thông nông thôn, bê tông hóa tuyến đường và sửa chữa nhà tình bạn.",
+      "leaderName": "ThS. Lê Hoàng Nam - Phó Bí thư Đoàn khoa",
+      "contactPhone": "0918765432",
+      "colorValue": 4293284096
+    },
+    "fac_003": {
+      "id": "fac_003",
+      "code": "YD",
+      "name": "Khoa Y Dược & Sức Khỏe",
+      "description": "Khám bệnh, phát thuốc miễn phí cho hộ nghèo, tập huấn sơ cấp cứu và phòng chống dịch bệnh.",
+      "leaderName": "BS. Trần Mai Anh - Phụ trách Đội Y tế",
+      "contactPhone": "0988112233",
+      "colorValue": 4278735227
+    },
+    "fac_004": {
+      "id": "fac_004",
+      "code": "SP",
+      "name": "Khoa Sư phạm & Ngôn ngữ",
+      "description": "Tổ chức các lớp học hè yêu thương, ôn tập văn hóa, rèn luyện kỹ năng sống cho thiếu nhi.",
+      "leaderName": "ThS. Phạm Thị Thu - Ban phong trào",
+      "contactPhone": "0977445566",
+      "colorValue": 4286267554
+    },
+    "fac_005": {
+      "id": "fac_005",
+      "code": "MT",
+      "name": "Khoa Môi trường & Đô thị",
+      "description": "Chiến dịch Ngày Chủ Nhật Xanh, xử lý điểm đen rác thải, trồng cây xanh bảo vệ cảnh quan trường và địa phương.",
+      "leaderName": "Kỹ sư Đặng Quốc Huy - Bí thư Chi đoàn",
+      "contactPhone": "0933556677",
+      "colorValue": 4282572871
+    }
+  },
+  "campaigns": {
+    "camp_001": {
+      "id": "camp_001",
+      "title": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên",
+      "category": "Xây dựng công trình",
+      "location": "Xã Tân Mỹ, Huyện Lấp Vò, Tỉnh Đồng Tháp",
+      "startDate": "2026-10-30T07:00:00.000Z",
+      "endDate": "2026-11-15T17:00:00.000Z",
+      "targetVolunteers": 35,
+      "currentRegistered": 28,
+      "description": "Phối hợp với chính quyền địa phương thi công 1 cây cầu bê tông liên ấp và 2km đường giao thông nông thôn phục vụ bà con đi lại thuận tiện.",
+      "requirements": "Có sức khỏe tốt, nhiệt tình, ưu tiên sinh viên biết kỹ thuật xây dựng hoặc sẵn sàng lao động công ích.",
+      "volunteerHours": 45,
+      "trainingPoints": 15,
+      "status": "Đang tuyển",
+      "facultyId": "fac_002",
+      "facultyName": "Khoa Kỹ thuật Xây dựng",
+      "isNearCampus": false,
+      "distanceFromCampusKm": 145.0
+    },
+    "camp_002": {
+      "id": "camp_002",
+      "title": "Chuyển Đổi Số Cộng Đồng & Hỗ Trợ Cài Đặt Dịch Vụ Công VNeID",
+      "category": "Chuyển đổi số",
+      "location": "Xã Lý Nhơn, Huyện Cần Giờ, TP. Hồ Chí Minh",
+      "startDate": "2026-11-01T07:30:00.000Z",
+      "endDate": "2026-11-08T17:00:00.000Z",
+      "targetVolunteers": 25,
+      "currentRegistered": 25,
+      "description": "Đến từng ấp, từng hộ gia đình để hướng dẫn bà con đăng ký tài khoản định danh VNeID, thanh toán trực tuyến không dùng tiền mặt và nộp hồ sơ dịch vụ công trực tuyến.",
+      "requirements": "Có điện thoại thông minh, kiên nhẫn hướng dẫn người lớn tuổi, nắm vững quy trình dịch vụ công.",
+      "volunteerHours": 35,
+      "trainingPoints": 12,
+      "status": "Đang tuyển",
+      "facultyId": "fac_001",
+      "facultyName": "Khoa Công nghệ Thông tin & TT",
+      "isNearCampus": false,
+      "distanceFromCampusKm": 65.0
+    },
+    "camp_003": {
+      "id": "camp_003",
+      "title": "Lớp Học Hè Yêu Thương & Ôn Tập Văn Hóa Cho Trẻ Em Vùng Xa",
+      "category": "Dạy học hè",
+      "location": "Xã An Phú Trung, Huyện Ba Tri, Tỉnh Bến Tre",
+      "startDate": "2026-10-17T07:00:00.000Z",
+      "endDate": "2026-11-01T17:00:00.000Z",
+      "targetVolunteers": 20,
+      "currentRegistered": 20,
+      "description": "Tổ chức các lớp ôn tập Toán, Tiếng Việt, Tiếng Anh và kỹ năng phòng chống đuối nước, sinh hoạt hè cho hơn 150 em học sinh cấp 1, cấp 2.",
+      "requirements": "Yêu mến trẻ em, có kỹ năng sư phạm hoặc kinh nghiệm sinh hoạt tập thể thiếu nhi.",
+      "volunteerHours": 40,
+      "trainingPoints": 15,
+      "status": "Đang diễn ra",
+      "facultyId": "fac_004",
+      "facultyName": "Khoa Sư phạm & Ngôn ngữ",
+      "isNearCampus": false,
+      "distanceFromCampusKm": 98.0
+    },
+    "camp_004": {
+      "id": "camp_004",
+      "title": "Khám Bệnh, Tư Vấn Sức Khỏe & Tặng Quà Gia Đình Chính Sách",
+      "category": "Y tế vì cộng đồng",
+      "location": "Huyện Đắk Glong, Tỉnh Đắk Nông",
+      "startDate": "2026-10-02T07:00:00.000Z",
+      "endDate": "2026-10-12T17:00:00.000Z",
+      "targetVolunteers": 30,
+      "currentRegistered": 30,
+      "description": "Phát thuốc, tư vấn dinh dưỡng cho 500 hộ đồng bào và trao tặng 100 suất học bổng cho học sinh nghèo vượt khó.",
+      "requirements": "Đoàn kết, sẵn sàng vượt khó đến vùng sâu vùng xa.",
+      "volunteerHours": 50,
+      "trainingPoints": 20,
+      "status": "Đã hoàn thành",
+      "facultyId": "fac_003",
+      "facultyName": "Khoa Y Dược & Sức Khỏe",
+      "isNearCampus": false,
+      "distanceFromCampusKm": 260.0
+    },
+    "camp_005": {
+      "id": "camp_005",
+      "title": "Chuyển Đổi Số & Hướng Dẫn VNeID Tại Phường Linh Chiểu",
+      "category": "Chuyển đổi số",
+      "location": "UBND Phường Linh Chiểu, TP. Thủ Đức (Cạnh trường)",
+      "startDate": "2026-10-28T08:00:00.000Z",
+      "endDate": "2026-11-04T17:00:00.000Z",
+      "targetVolunteers": 20,
+      "currentRegistered": 14,
+      "description": "Phối hợp cùng UBND Phường kế bên trường đại học để hỗ trợ bà con kích hoạt VNeID định danh mức 2 và tích hợp thông tin thẻ BHYT.",
+      "requirements": "Sinh viên năng động, có điện thoại thông minh kết nối 4G/Wifi.",
+      "volunteerHours": 20,
+      "trainingPoints": 10,
+      "status": "Đang tuyển",
+      "facultyId": "fac_001",
+      "facultyName": "Khoa Công nghệ Thông tin & TT",
+      "isNearCampus": true,
+      "distanceFromCampusKm": 0.6
+    },
+    "camp_006": {
+      "id": "camp_006",
+      "title": "Ngày Chủ Nhật Xanh - Cải Tạo Mảng Xanh Khuôn Viên & KTX Trường",
+      "category": "Xây dựng công trình",
+      "location": "Khuôn viên chính & Khu Ký túc xá Sinh viên",
+      "startDate": "2026-10-31T06:30:00.000Z",
+      "endDate": "2026-11-02T16:30:00.000Z",
+      "targetVolunteers": 40,
+      "currentRegistered": 31,
+      "description": "Thu gom phân loại rác tái chế, trồng mới 120 cây bóng mát và hoa kiểng, chỉnh trang cảnh quan xanh sạch đẹp tại khuôn viên trường.",
+      "requirements": "Nhiệt huyết, thích hoạt động ngoài trời cải tạo môi trường học tập.",
+      "volunteerHours": 15,
+      "trainingPoints": 8,
+      "status": "Đang tuyển",
+      "facultyId": "fac_005",
+      "facultyName": "Khoa Môi trường & Đô thị",
+      "isNearCampus": true,
+      "distanceFromCampusKm": 0.1
+    },
+    "camp_007": {
+      "id": "camp_007",
+      "title": "Gia Sư Áo Xanh Cho Trẻ Em Cơ Nhỡ - Cơ Sở Gò Dưa Thủ Đức",
+      "category": "Dạy học hè",
+      "location": "Trung tâm Bảo trợ Trẻ em Tam Bình - Gò Dưa, TP. Thủ Đức",
+      "startDate": "2026-10-13T08:00:00.000Z",
+      "endDate": "2026-10-25T16:30:00.000Z",
+      "targetVolunteers": 15,
+      "currentRegistered": 15,
+      "description": "Đã hoàn thành 12 buổi dạy kèm kiến thức Toán, Anh văn và giao lưu trò chơi dân gian cho 45 em nhỏ có hoàn cảnh đặc biệt.",
+      "requirements": "Kiên nhẫn, yêu thương trẻ em.",
+      "volunteerHours": 30,
+      "trainingPoints": 12,
+      "status": "Đã hoàn thành",
+      "facultyId": "fac_004",
+      "facultyName": "Khoa Sư phạm & Ngôn ngữ",
+      "isNearCampus": true,
+      "distanceFromCampusKm": 3.5
+    }
+  },
+  "registrations": {
+    "reg_001": {
+      "id": "reg_001",
+      "volunteerId": "vol_001",
+      "volunteerName": "Nguyễn Văn An",
+      "studentId": "22120098",
+      "phone": "0987654321",
+      "faculty": "Khoa Công nghệ Thông tin & TT",
+      "campaignId": "camp_002",
+      "campaignTitle": "Chuyển Đổi Số Cộng Đồng & Hỗ Trợ Cài Đặt Dịch Vụ Công VNeID",
+      "registeredDate": "2026-10-25T14:20:00.000Z",
+      "status": "approved",
+      "assignedTeam": "Đội hình Chuyển đổi số & Dạy tin học",
+      "note": "Đã phân công vào Đội 1 phụ trách khu vực Ấp 2 & Ấp 3.",
+      "attendanceDays": 6,
+      "isCertified": true
+    },
+    "reg_002": {
+      "id": "reg_002",
+      "volunteerId": "vol_001",
+      "volunteerName": "Nguyễn Văn An",
+      "studentId": "22120098",
+      "phone": "0987654321",
+      "faculty": "Khoa Công nghệ Thông tin & TT",
+      "campaignId": "camp_001",
+      "campaignTitle": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên",
+      "registeredDate": "2026-10-26T09:15:00.000Z",
+      "status": "pending",
+      "assignedTeam": null,
+      "note": "Hồ sơ đang được Ban chỉ huy mặt trận xét duyệt danh sách đợt 1.",
+      "attendanceDays": 0,
+      "isCertified": false
+    },
+    "reg_003": {
+      "id": "reg_003",
+      "volunteerId": "vol_002",
+      "volunteerName": "Trần Thị Mai",
+      "studentId": "22145012",
+      "phone": "0912345678",
+      "faculty": "Khoa Y Dược & Sức Khỏe",
+      "campaignId": "camp_001",
+      "campaignTitle": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên",
+      "registeredDate": "2026-10-24T10:30:00.000Z",
+      "status": "approved",
+      "assignedTeam": "Đội Hậu cần & Y tế cơ sở",
+      "note": "Duyệt tham gia đội hình hỗ trợ tiếp tế và sơ cấp cứu.",
+      "attendanceDays": 4,
+      "isCertified": false
+    },
+    "reg_004": {
+      "id": "reg_004",
+      "volunteerId": "vol_003",
+      "volunteerName": "Lê Hoàng Long",
+      "studentId": "21110034",
+      "phone": "0903112233",
+      "faculty": "Khoa Kỹ thuật Xây dựng",
+      "campaignId": "camp_001",
+      "campaignTitle": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên",
+      "registeredDate": "2026-10-23T16:00:00.000Z",
+      "status": "rejected",
+      "assignedTeam": null,
+      "note": "Trùng lịch thi học phần quân sự tập trung cùng thời điểm.",
+      "attendanceDays": 0,
+      "isCertified": false
+    }
+  },
+  "task_reports": {
+    "rep_001": {
+      "id": "rep_001",
+      "volunteerId": "vol_001",
+      "volunteerName": "Nguyễn Văn An",
+      "studentId": "22120098",
+      "campaignId": "camp_002",
+      "campaignTitle": "Chuyển Đổi Số Cộng Đồng & Hỗ Trợ Cài Đặt Dịch Vụ Công VNeID",
+      "title": "Hoàn thành hướng dẫn định danh VNeID cho 35 hộ gia đình Ấp 2",
+      "description": "Tổ công tác gồm 3 chiến sĩ đã đến trực tiếp 35 hộ dân, hỗ trợ kích hoạt mức 2 thành công và phát 50 tờ rơi hướng dẫn nộp phạt nguội, đăng ký tạm trú qua mạng.",
+      "proofDescription": "Ảnh chụp cùng bà con tại trụ sở ấp và danh sách ký nhận hỗ trợ (35 chữ ký). Video quay ngắn 1 phút ghi nhận hoạt động.",
+      "proofType": "image",
+      "submittedAt": "2026-10-26T16:45:00.000Z",
+      "status": "approved",
+      "awardedHours": 8,
+      "awardedPoints": 5,
+      "feedback": "Báo cáo rất chi tiết, hình ảnh minh chứng rõ ràng. Biểu dương tinh thần tích cực của đồng chí."
+    },
+    "rep_002": {
+      "id": "rep_002",
+      "volunteerId": "vol_002",
+      "volunteerName": "Trần Thị Mai",
+      "studentId": "22145012",
+      "campaignId": "camp_001",
+      "campaignTitle": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên",
+      "title": "Tiếp nhận và bảo quản 15 hộp sơ cứu & 50 suất cơm trưa tình nguyện",
+      "description": "Đã kiểm đếm đầy đủ vật tư y tế, bông băng cồn đỏ, phát nước uống tăng lực cho anh em đội xây dựng thi công mố cầu số 1.",
+      "proofDescription": "Biên bản bàn giao thực phẩm và ảnh chụp khu vực bếp ăn hậu cần dã chiến.",
+      "proofType": "image",
+      "submittedAt": "2026-10-27T07:15:00.000Z",
+      "status": "pending",
+      "awardedHours": 0,
+      "awardedPoints": 0,
+      "feedback": null
+    }
+  },
+  "budget_logistics": {
+    "camp_001": {
+      "id": "bl_001",
+      "campaignId": "camp_001",
+      "campaignTitle": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên",
+      "estimatedBudget": 35000000.0,
+      "actualCost": 31800000.0,
+      "logisticsItems": [
+        {
+          "itemName": "Áo thun Mùa Hè Xanh",
+          "quantity": 40,
+          "unit": "Cái",
+          "note": "Đã cấp phát đủ cho TNV"
+        },
+        {
+          "itemName": "Nón tai bèo Đoàn - Hội",
+          "quantity": 40,
+          "unit": "Cái",
+          "note": "Đã nhận từ Tỉnh Đoàn"
+        },
+        {
+          "itemName": "Cuốc, xẻng, xe rùa thi công",
+          "quantity": 15,
+          "unit": "Bộ",
+          "note": "Mượn từ HTX địa phương"
+        },
+        {
+          "itemName": "Túi thuốc & dụng cụ y tế lưu động",
+          "quantity": 4,
+          "unit": "Hộp",
+          "note": "Đầy đủ cồn, gạc, thuốc cảm"
+        },
+        {
+          "itemName": "Băng rôn khẩu hiệu tuyên truyền",
+          "quantity": 3,
+          "unit": "Tấm",
+          "note": "Treo tại cầu và trụ sở UBND xã"
+        }
+      ],
+      "generalNotes": "Chi phí phát sinh thấp hơn dự toán nhờ địa phương tài trợ cát đá và hỗ trợ nấu cơm trưa cho đội hình.",
+      "lastUpdated": "2026-10-26T15:30:00.000Z"
+    },
+    "camp_002": {
+      "id": "bl_002",
+      "campaignId": "camp_002",
+      "campaignTitle": "Chuyển Đổi Số Cộng Đồng & Hỗ Trợ Cài Đặt Dịch Vụ Công VNeID",
+      "estimatedBudget": 12000000.0,
+      "actualCost": 11200000.0,
+      "logisticsItems": [
+        {
+          "itemName": "Áo thun Mùa Hè Xanh",
+          "quantity": 25,
+          "unit": "Cái",
+          "note": "Đã trang bị"
+        },
+        {
+          "itemName": "Nón tai bèo",
+          "quantity": 25,
+          "unit": "Cái",
+          "note": "Đã trang bị"
+        },
+        {
+          "itemName": "Tài liệu & Tờ rơi hướng dẫn VNeID",
+          "quantity": 1200,
+          "unit": "Tờ",
+          "note": "Đã in ấn hoàn tất"
+        },
+        {
+          "itemName": "Sim 4G lưu động & Pin sạc dự phòng",
+          "quantity": 10,
+          "unit": "Bộ",
+          "note": "Phục vụ điểm không có wifi"
+        }
+      ],
+      "generalNotes": "Các tổ lưu động đi ca ngày và tối, kinh phí tập trung cho tài liệu tuyên truyền và nước uống giải khát.",
+      "lastUpdated": "2026-10-27T00:30:00.000Z"
+    }
+  },
+  "admin_notifications": {
+    "notif_001": {
+      "id": "notif_001",
+      "title": "Sinh viên mới đăng ký hoạt động",
+      "message": "Sinh viên Nguyễn Văn An (MSSV: 22120098, Khoa: Khoa Công nghệ Thông tin & TT, SĐT: 0987654321) vừa đăng ký tham gia \"Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên\".",
+      "createdAt": "2026-10-26T09:15:00.000Z",
+      "isRead": false,
+      "registrationId": "reg_002",
+      "studentId": "22120098",
+      "studentName": "Nguyễn Văn An",
+      "phone": "0987654321",
+      "faculty": "Khoa Công nghệ Thông tin & TT",
+      "campaignId": "camp_001",
+      "campaignTitle": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên"
+    },
+    "notif_002": {
+      "id": "notif_002",
+      "title": "Sinh viên đăng ký hoạt động",
+      "message": "Sinh viên Trần Thị Mai (MSSV: 22145012, Khoa: Khoa Y Dược & Sức Khỏe, SĐT: 0912345678) đã đăng ký tham gia \"Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên\".",
+      "createdAt": "2026-10-24T10:30:00.000Z",
+      "isRead": true,
+      "registrationId": "reg_003",
+      "studentId": "22145012",
+      "studentName": "Trần Thị Mai",
+      "phone": "0912345678",
+      "faculty": "Khoa Y Dược & Sức Khỏe",
+      "campaignId": "camp_001",
+      "campaignTitle": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên"
+    },
+    "notif_003": {
+      "id": "notif_003",
+      "title": "Sinh viên đăng ký hoạt động",
+      "message": "Sinh viên Lê Hoàng Long (MSSV: 21110034, Khoa: Khoa Kỹ thuật Xây dựng, SĐT: 0903112233) đã đăng ký tham gia \"Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên\".",
+      "createdAt": "2026-10-23T16:00:00.000Z",
+      "isRead": true,
+      "registrationId": "reg_004",
+      "studentId": "21110034",
+      "studentName": "Lê Hoàng Long",
+      "phone": "0903112233",
+      "faculty": "Khoa Kỹ thuật Xây dựng",
+      "campaignId": "camp_001",
+      "campaignTitle": "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên"
+    }
+  }
+}

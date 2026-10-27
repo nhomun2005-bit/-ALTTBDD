@@ -63,26 +63,42 @@ class _RegistrationStatusScreenState extends State<RegistrationStatusScreen> {
               itemBuilder: (context, index) {
                 final reg = myRegistrations[index];
 
+                // Kiểm tra xem sinh viên đã nộp minh chứng nhiệm vụ cho chiến dịch này chưa
+                final userReport = _dataService.taskReports.where(
+                  (r) => (r.campaignId == reg.campaignId || r.campaignTitle == reg.campaignTitle) &&
+                         (r.volunteerId == reg.volunteerId || r.studentId == reg.studentId),
+                ).toList();
+                final bool hasSubmittedProof = userReport.any((r) => r.proofImageBytes != null || r.proofDescription.isNotEmpty);
+                final bool isCompleted = reg.status == RegistrationStatus.approved && hasSubmittedProof;
+
+                String displayStatusLabel = reg.status.label;
                 Color statusColor;
                 Color statusBg;
                 IconData statusIcon;
 
-                switch (reg.status) {
-                  case RegistrationStatus.approved:
-                    statusColor = AppTheme.primaryGreenDark;
-                    statusBg = AppTheme.primaryGreenLight;
-                    statusIcon = Icons.check_circle;
-                    break;
-                  case RegistrationStatus.rejected:
-                    statusColor = AppTheme.dangerRed;
-                    statusBg = Colors.red.shade50;
-                    statusIcon = Icons.cancel;
-                    break;
-                  case RegistrationStatus.pending:
-                    statusColor = AppTheme.accentOrange;
-                    statusBg = Colors.amber.shade50;
-                    statusIcon = Icons.hourglass_bottom;
-                    break;
+                if (isCompleted) {
+                  displayStatusLabel = 'Đã hoàn thành';
+                  statusColor = AppTheme.primaryGreenDark;
+                  statusBg = AppTheme.primaryGreenLight;
+                  statusIcon = Icons.task_alt;
+                } else {
+                  switch (reg.status) {
+                    case RegistrationStatus.approved:
+                      statusColor = AppTheme.primaryGreenDark;
+                      statusBg = AppTheme.primaryGreenLight;
+                      statusIcon = Icons.check_circle;
+                      break;
+                    case RegistrationStatus.rejected:
+                      statusColor = AppTheme.dangerRed;
+                      statusBg = Colors.red.shade50;
+                      statusIcon = Icons.cancel;
+                      break;
+                    case RegistrationStatus.pending:
+                      statusColor = AppTheme.accentOrange;
+                      statusBg = Colors.amber.shade50;
+                      statusIcon = Icons.hourglass_bottom;
+                      break;
+                  }
                 }
 
                 return Card(
@@ -107,7 +123,7 @@ class _RegistrationStatusScreenState extends State<RegistrationStatusScreen> {
                                   Icon(statusIcon, size: 14, color: statusColor),
                                   const SizedBox(width: 4),
                                   Text(
-                                    reg.status.label,
+                                    displayStatusLabel,
                                     style: TextStyle(
                                       color: statusColor,
                                       fontSize: 12,
@@ -124,6 +140,27 @@ class _RegistrationStatusScreenState extends State<RegistrationStatusScreen> {
                             ),
                           ],
                         ),
+                        if (isCompleted) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryGreenLight.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.4)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.verified, size: 16, color: AppTheme.primaryGreen),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Đã nộp minh chứng & hoàn thành hoạt động',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreenDark),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 10),
 
                         // Campaign title
@@ -203,17 +240,27 @@ class _RegistrationStatusScreenState extends State<RegistrationStatusScreen> {
 
                         // Điểm danh ngày công
                         if (reg.status == RegistrationStatus.approved) ...[
-                          Row(
-                            children: [
-                              const Icon(Icons.event_available, size: 16, color: AppTheme.primaryGreen),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Điểm danh ghi nhận: ${reg.attendanceDays} buổi tham gia',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                              ),
-                            ],
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryGreenLight.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.event_available, size: 18, color: AppTheme.primaryGreen),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Điểm danh ghi nhận: ${reg.attendanceDays} buổi tham gia',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryGreenDark),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                         ],
 
                         // Phản hồi / Lý do

@@ -10,6 +10,7 @@ import 'admin_attendance_screen.dart';
 import 'admin_proof_evaluation_screen.dart';
 import 'admin_budget_logistics_screen.dart';
 import 'admin_export_screen.dart';
+import 'admin_faculty_screen.dart';
 
 class AdminMainScreen extends StatefulWidget {
   final VoidCallback onSwitchToStudentApp;
@@ -258,6 +259,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
       const AdminProofEvaluationScreen(),
       const AdminBudgetLogisticsScreen(),
       const AdminExportScreen(),
+      const AdminFacultyScreen(),
     ];
 
     final pendingRegCount = _dataService.registrations.where((r) => r.status == RegistrationStatus.pending).length;
@@ -270,16 +272,18 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
       {'title': 'Thẩm Định Minh Chứng', 'icon': Icons.rate_review_outlined, 'selectedIcon': Icons.rate_review, 'badge': 0},
       {'title': 'Ngân Sách & Hậu Cần', 'icon': Icons.inventory_2_outlined, 'selectedIcon': Icons.inventory_2, 'badge': 0},
       {'title': 'Tổng Hợp & Báo Cáo', 'icon': Icons.analytics_outlined, 'selectedIcon': Icons.analytics, 'badge': 0},
+      {'title': 'Quản Lý Khoa / Viện', 'icon': Icons.domain_outlined, 'selectedIcon': Icons.domain, 'badge': 0},
     ];
 
     return Scaffold(
       body: Row(
         children: [
           // Sidebar Admin
-          Container(
+          SizedBox(
             width: 250,
-            color: const Color(0xFF0F2B1D), // Dark forest green
-            child: Column(
+            child: Material(
+              color: const Color(0xFF0F2B1D), // Dark forest green
+              child: Column(
               children: [
                 // Header Logo
                 Container(
@@ -339,35 +343,38 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                           color: isSelected ? AppTheme.primaryGreen : Colors.transparent,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: ListTile(
-                          dense: true,
-                          leading: Icon(
-                            isSelected ? (item['selectedIcon'] as IconData) : (item['icon'] as IconData),
-                            color: isSelected ? Colors.white : Colors.white70,
-                            size: 20,
-                          ),
-                          title: Text(
-                            item['title'] as String,
-                            style: TextStyle(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(
+                              isSelected ? (item['selectedIcon'] as IconData) : (item['icon'] as IconData),
                               color: isSelected ? Colors.white : Colors.white70,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: 13,
+                              size: 20,
                             ),
+                            title: Text(
+                              item['title'] as String,
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : Colors.white70,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                fontSize: 13,
+                              ),
+                            ),
+                            trailing: badge > 0
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '$badge',
+                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                  )
+                                : null,
+                            onTap: () => setState(() => _selectedIndex = index),
                           ),
-                          trailing: badge > 0
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.redAccent,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '$badge',
-                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                )
-                              : null,
-                          onTap: () => setState(() => _selectedIndex = index),
                         ),
                       );
                     },
@@ -406,6 +413,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
               ],
             ),
           ),
+        ),
 
           // Main Content Area
           Expanded(

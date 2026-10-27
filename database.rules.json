@@ -1,0 +1,24 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "volunteers": {
+      ".indexOn": ["studentId", "email"]
+    },
+    "campaigns": {
+      ".indexOn": ["facultyId", "status", "category", "startDate"]
+    },
+    "registrations": {
+      ".indexOn": ["volunteerId", "campaignId", "studentId", "status"]
+    },
+    "task_reports": {
+      ".indexOn": ["volunteerId", "campaignId", "status"]
+    },
+    "budget_logistics": {
+      ".indexOn": ["campaignId"]
+    },
+    "admin_notifications": {
+      ".indexOn": ["isRead", "createdAt"]
+    }
+  }
+}

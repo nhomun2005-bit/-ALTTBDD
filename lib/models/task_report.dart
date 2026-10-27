@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 enum ReportStatus {
@@ -110,6 +111,8 @@ class TaskReport {
       'description': description,
       'proofDescription': proofDescription,
       'proofType': proofType,
+      'proofImageBase64': proofImageBytes != null ? base64Encode(proofImageBytes!) : null,
+      'proofImageName': proofImageName,
       'submittedAt': submittedAt.toIso8601String(),
       'status': status.name,
       'awardedHours': awardedHours,
@@ -119,6 +122,13 @@ class TaskReport {
   }
 
   factory TaskReport.fromMap(Map<String, dynamic> map) {
+    Uint8List? bytes;
+    if (map['proofImageBase64'] != null && map['proofImageBase64'] is String) {
+      try {
+        bytes = base64Decode(map['proofImageBase64']);
+      } catch (_) {}
+    }
+
     return TaskReport(
       id: map['id'],
       volunteerId: map['volunteerId'],
@@ -130,6 +140,8 @@ class TaskReport {
       description: map['description'],
       proofDescription: map['proofDescription'] ?? '',
       proofType: map['proofType'] ?? 'image',
+      proofImageBytes: bytes,
+      proofImageName: map['proofImageName'],
       submittedAt: DateTime.parse(map['submittedAt']),
       status: ReportStatus.values.firstWhere(
         (e) => e.name == map['status'],

@@ -43,6 +43,87 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     if (mounted) setState(() {});
   }
 
+  void _showProofImageModal(Uint8List imageBytes, String title, String? fileName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.image, color: AppTheme.primaryGreen),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: InteractiveViewer(
+                    maxScale: 4.0,
+                    child: Image.memory(
+                      imageBytes,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                    ),
+                  ),
+                ),
+                if (fileName != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    fileName,
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          ElevatedButton.icon(
+            onPressed: () async {
+              final name = fileName ?? 'minh_chung.png';
+              final savedPath = await saveAndDownloadFile(imageBytes, name);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(savedPath != null && savedPath.contains('\\')
+                        ? 'Đã tải ảnh về: $savedPath'
+                        : 'Đã tải ảnh $name về máy!'),
+                    backgroundColor: AppTheme.primaryGreen,
+                    action: savedPath != null && savedPath.contains('\\')
+                        ? SnackBarAction(
+                            label: 'Mở File',
+                            textColor: Colors.white,
+                            onPressed: () => openSavedFile(savedPath),
+                          )
+                        : null,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.download, size: 16),
+            label: const Text('Tải ảnh về máy'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.youthBlue),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showNewReportModal({String? preselectedCampaignId}) {
     // Lấy các chiến dịch mà sinh viên đã được duyệt
     final approvedCampaigns = _dataService.registrations
@@ -695,13 +776,44 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                               ),
                               if (report.proofImageBytes != null) ...[
                                 const SizedBox(height: 8),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Image.memory(
+                                GestureDetector(
+                                  onTap: () => _showProofImageModal(
                                     report.proofImageBytes!,
-                                    height: 140,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
+                                    report.title,
+                                    report.proofImageName,
+                                  ),
+                                  child: Stack(
+                                    alignment: Alignment.bottomRight,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Image.memory(
+                                          report.proofImageBytes!,
+                                          height: 140,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      Container(
+                                        margin: const EdgeInsets.all(6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.65),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Bấm xem ảnh',
+                                              style: TextStyle(color: Colors.white, fontSize: 11),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 6),

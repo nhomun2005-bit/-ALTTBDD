@@ -442,7 +442,7 @@ class _AdminProofEvaluationScreenState extends State<AdminProofEvaluationScreen>
                                                     child: Container(
                                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                       decoration: BoxDecoration(
-                                                        color: AppTheme.youthBlue.withOpacity(0.12),
+                                                        color: AppTheme.youthBlue.withValues(alpha: 0.12),
                                                         borderRadius: BorderRadius.circular(4),
                                                       ),
                                                       child: const Row(

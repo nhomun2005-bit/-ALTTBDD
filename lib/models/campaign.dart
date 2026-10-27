@@ -12,6 +12,10 @@ class Campaign {
   final int volunteerHours;
   final int trainingPoints;
   final String status; // 'Đang tuyển', 'Đang diễn ra', 'Đã hoàn thành'
+  final String? facultyId;
+  final String? facultyName;
+  final bool isNearCampus;
+  final double? distanceFromCampusKm;
 
   Campaign({
     required this.id,
@@ -27,6 +31,10 @@ class Campaign {
     required this.volunteerHours,
     required this.trainingPoints,
     this.status = 'Đang tuyển',
+    this.facultyId,
+    this.facultyName,
+    this.isNearCampus = false,
+    this.distanceFromCampusKm,
   });
 
   Campaign copyWith({
@@ -43,6 +51,10 @@ class Campaign {
     int? volunteerHours,
     int? trainingPoints,
     String? status,
+    String? facultyId,
+    String? facultyName,
+    bool? isNearCampus,
+    double? distanceFromCampusKm,
   }) {
     return Campaign(
       id: id ?? this.id,
@@ -58,6 +70,10 @@ class Campaign {
       volunteerHours: volunteerHours ?? this.volunteerHours,
       trainingPoints: trainingPoints ?? this.trainingPoints,
       status: status ?? this.status,
+      facultyId: facultyId ?? this.facultyId,
+      facultyName: facultyName ?? this.facultyName,
+      isNearCampus: isNearCampus ?? this.isNearCampus,
+      distanceFromCampusKm: distanceFromCampusKm ?? this.distanceFromCampusKm,
     );
   }
 
@@ -76,6 +92,10 @@ class Campaign {
       'volunteerHours': volunteerHours,
       'trainingPoints': trainingPoints,
       'status': status,
+      'facultyId': facultyId,
+      'facultyName': facultyName,
+      'isNearCampus': isNearCampus,
+      'distanceFromCampusKm': distanceFromCampusKm,
     };
   }
 
@@ -94,6 +114,10 @@ class Campaign {
       volunteerHours: map['volunteerHours'],
       trainingPoints: map['trainingPoints'],
       status: map['status'] ?? 'Đang tuyển',
+      facultyId: map['facultyId'],
+      facultyName: map['facultyName'],
+      isNearCampus: map['isNearCampus'] ?? false,
+      distanceFromCampusKm: (map['distanceFromCampusKm'] as num?)?.toDouble(),
     );
   }
 }

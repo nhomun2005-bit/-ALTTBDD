@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1005012743563",
+    "firebase_url": "https://duanmuahexanh-default-rtdb.firebaseio.com",
+    "project_id": "duanmuahexanh",
+    "storage_bucket": "duanmuahexanh.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1005012743563:android:99257d176fb00a05d06b8e",
+        "android_client_info": {
+          "package_name": "com.example.duanmuahexanh"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbqTr903MWQvQZ6rY4BNw4Fzn14c1Ss1w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

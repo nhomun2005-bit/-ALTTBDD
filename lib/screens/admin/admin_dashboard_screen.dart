@@ -192,9 +192,11 @@ class AdminDashboardScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Kinh Phí Hoạt Động Tình Nguyện',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                          const Expanded(
+                            child: Text(
+                              'Kinh Phí Hoạt Động Tình Nguyện',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                            ),
                           ),
                           TextButton.icon(
                             onPressed: () => onNavigate(5),
@@ -324,15 +326,20 @@ class AdminDashboardScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.how_to_reg, color: AppTheme.primaryGreenDark, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Hồ Sơ Đăng Ký Chờ Phê Duyệt (Mục Đã Đăng Ký)',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                        ),
-                      ],
+                    const Expanded(
+                      child: Row(
+                        children: [
+                          Icon(Icons.how_to_reg, color: AppTheme.primaryGreenDark, size: 20),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Hồ Sơ Đăng Ký Chờ Phê Duyệt',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     TextButton.icon(
                       onPressed: () => onNavigate(2),
@@ -370,7 +377,8 @@ class AdminDashboardScreen extends StatelessWidget {
                           backgroundColor: Colors.amber.shade50,
                           child: const Icon(Icons.hourglass_top, color: AppTheme.accentOrange, size: 16),
                         ),
-                        title: Row(
+                        title: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(reg.volunteerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             const SizedBox(width: 6),
@@ -438,9 +446,11 @@ class AdminDashboardScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.all(8),

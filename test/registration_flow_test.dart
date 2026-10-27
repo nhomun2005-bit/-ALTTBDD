@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:duanmuahexanh/models/campaign.dart';
 import 'package:duanmuahexanh/models/registration.dart';
+import 'package:duanmuahexanh/models/faculty.dart';
 import 'package:duanmuahexanh/services/data_service.dart';
 import 'package:duanmuahexanh/screens/volunteer/registration_dialog.dart';
-import 'package:duanmuahexanh/screens/admin/admin_volunteer_approval_screen.dart';
+import 'package:duanmuahexanh/screens/auth/auth_screen.dart';
 
 void main() {
   group('Kiểm thử Quy trình Đăng ký Hoạt động Mùa Hè Xanh', () {
@@ -151,5 +152,113 @@ void main() {
       expect(reg.phone, '0918765432');
       expect(reg.faculty, 'Khoa Xây Dựng');
     });
+
+    testWidgets('AuthScreen hiển thị form Đăng ký tài khoản an toàn không lỗi Dropdown khi có khoa trùng lặp', (WidgetTester tester) async {
+      // Giả lập danh sách khoa có 2 khoa trùng tên nhau (nguyên nhân gây lỗi Dropdown)
+      dataService.faculties.add(Faculty(
+        id: 'fac_duplicate_test',
+        code: 'CNTT_2',
+        name: 'Khoa Công nghệ Thông tin & TT',
+        description: 'Trùng tên kiểm thử',
+        leaderName: 'Test',
+        contactPhone: '0123456789',
+        colorValue: 0xFF000000,
+      ));
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: AuthScreen(initialIsRegister: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Kiểm tra các trường đăng ký tài khoản được hiển thị đầy đủ
+      expect(find.text('ĐĂNG KÝ TÀI KHOẢN'), findsWidgets);
+      expect(find.text('Họ và tên *'), findsOneWidget);
+      expect(find.text('Số điện thoại *'), findsOneWidget);
+      expect(find.text('Email sinh viên *'), findsOneWidget);
+      expect(find.text('Khoa / Viện đào tạo *'), findsOneWidget);
+      expect(find.text('Niên khóa *'), findsOneWidget);
+      expect(find.text('Tên đăng nhập *'), findsOneWidget);
+      expect(find.text('Mật khẩu (tối thiểu 6 ký tự) *'), findsOneWidget);
+      expect(find.text('Xác nhận lại mật khẩu *'), findsOneWidget);
+    });
+
+    testWidgets('AuthScreen Đăng nhập hiển thị loading chuyển tiếp 2-3s trước khi vào trang chủ', (WidgetTester tester) async {
+      bool loginSuccessCalled = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AuthScreen(
+            initialIsRegister: false,
+            onSuccess: () => loginSuccessCalled = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Nhập tài khoản admin
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nhập tên đăng nhập hoặc email'), 'admin');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nhập mật khẩu'), 'admin123');
+
+      // Bấm nút ĐĂNG NHẬP
+      await tester.tap(find.widgetWithText(ElevatedButton, 'ĐĂNG NHẬP'));
+      await tester.pump(); // frame đầu tiên
+
+      // Kiểm tra giao diện Loading chuyển tiếp xuất hiện ngay
+      expect(find.text('Đang Xác Thực Tài Khoản...'), findsOneWidget);
+      expect(find.textContaining('Xin chào Ban Chỉ Huy Chiến Dịch!'), findsOneWidget);
+      expect(loginSuccessCalled, isFalse);
+
+      // Chờ thời gian chuyển tiếp 2s - 3s
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pump(const Duration(milliseconds: 1000));
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      // Sau 2-3s, đăng nhập thành công được kích hoạt
+      expect(loginSuccessCalled, isTrue);
+      expect(dataService.isLoggedIn, isTrue);
+      expect(dataService.currentUser?.username, 'admin');
+    });
+
+    testWidgets('AuthScreen Đăng ký xong hiển thị loading 2-3s và yêu cầu đăng nhập lại', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: AuthScreen(initialIsRegister: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Nhập thông tin đăng ký mới
+      final uniqueUsername = 'testuser_${DateTime.now().millisecondsSinceEpoch}';
+      await tester.enterText(find.widgetWithText(TextFormField, 'Ví dụ: Nguyễn Văn An'), 'Sinh Viên Mới');
+      await tester.enterText(find.widgetWithText(TextFormField, '0987654321'), '0912345678');
+      await tester.enterText(find.widgetWithText(TextFormField, 'sv@sinhvien.edu.vn'), '$uniqueUsername@sinhvien.edu.vn');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Ví dụ: nguyenvana22'), uniqueUsername);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nhập mật khẩu'), '123456');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nhập lại mật khẩu trên'), '123456');
+
+      // Bấm ĐĂNG KÝ TÀI KHOẢN
+      await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'ĐĂNG KÝ TÀI KHOẢN'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'ĐĂNG KÝ TÀI KHOẢN'));
+      await tester.pump();
+
+      // Kiểm tra màn hình loading xuất hiện
+      expect(find.text('Đang Thiết Lập Tài Khoản...'), findsOneWidget);
+      expect(find.textContaining('Tạo hồ sơ tình nguyện viên cho Sinh Viên Mới'), findsOneWidget);
+
+      // Chờ thời gian chuyển tiếp 2s - 3s
+      await tester.pump(const Duration(milliseconds: 850));
+      await tester.pump(const Duration(milliseconds: 1000));
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      // Đã chuyển về tab Đăng Nhập và yêu cầu đăng nhập lại
+      expect(find.text('Đăng Nhập'), findsWidgets);
+      expect(find.textContaining('Đăng ký tài khoản thành công! Vui lòng nhập mật khẩu để đăng nhập.'), findsOneWidget);
+      expect(find.text(uniqueUsername), findsOneWidget); // Username được tự động điền
+    });
   });
 }
+

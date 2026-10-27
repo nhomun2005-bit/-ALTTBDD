@@ -6,19 +6,42 @@ import '../models/registration.dart';
 import '../models/task_report.dart';
 import '../models/budget_logistics.dart';
 import '../models/admin_notification.dart';
+import '../models/faculty.dart';
+import '../models/user_account.dart';
+import 'firebase_service.dart';
 
 class DataService extends ChangeNotifier {
   static final DataService _instance = DataService._internal();
   factory DataService() => _instance;
-  DataService._internal() {
-    _initDefaultData();
-  }
+
+  final FirebaseService _firebaseService = FirebaseService();
+
+  // Trạng thái kết nối và đồng bộ Firebase
+  bool _isFirebaseConnected = false;
+  bool get isFirebaseConnected => _isFirebaseConnected;
+
+  bool _isSyncingFirebase = false;
+  bool get isSyncingFirebase => _isSyncingFirebase;
+
+  String? _lastSyncMessage;
+  String? get lastSyncMessage => _lastSyncMessage;
 
   // Tình trạng chế độ mạng
   bool isLowBandwidthMode = true; // Bật mặc định để tải siêu nhanh trên 3G
 
+  // Địa chỉ khuôn viên trường đại học
+  final String universityCampusAddress =
+      'Số 1 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh';
+
+  // Quản lý tài khoản người dùng và xác thực
+  List<UserAccount> users = [];
+  UserAccount? currentUser;
+  bool get isLoggedIn => currentUser != null;
+  bool get isAdmin => currentUser?.role == 'admin';
+
   // Danh sách dữ liệu chính
   late Volunteer currentVolunteer;
+  List<Faculty> faculties = [];
   List<Campaign> campaigns = [];
   List<Registration> registrations = [];
   List<TaskReport> taskReports = [];
@@ -28,24 +51,112 @@ class DataService extends ChangeNotifier {
   int get unreadAdminNotificationCount =>
       adminNotifications.where((n) => !n.isRead).length;
 
+  DataService._internal() {
+    _initDefaultData();
+    _initFirebase();
+  }
+
+  // --- KHỞI TẠO DỮ LIỆU MẶC ĐỊNH CHO BỘ NHỚ RAM BAN ĐẦU ---
   void _initDefaultData() {
-    // 1. Hồ sơ sinh viên mẫu (các trường nhóm máu, kỹ năng để trống/tuỳ chọn)
+    // 1. Hồ sơ sinh viên mẫu
     currentVolunteer = Volunteer(
       id: 'vol_001',
       studentId: '22120098',
       fullName: 'Nguyễn Văn An',
       email: 'an.nguyen@sinhvien.edu.vn',
       phone: '0987654321',
-      faculty: 'Công nghệ Thông tin & Truyền thông',
+      faculty: 'Khoa Công nghệ Thông tin & TT',
       teamName: 'Đội hình Chuyển đổi số & Dạy tin học',
-      bloodType: null, // Không bắt buộc theo yêu cầu người dùng
-      skills: null,    // Không bắt buộc theo yêu cầu người dùng
+      bloodType: 'O',
+      skills: 'Tin học văn phòng, Dạy học, Lắp ráp mạng',
       totalHours: 42,
       totalPoints: 18,
       completedActivities: 2,
     );
 
-    // 2. Danh sách chiến dịch / hoạt động Mùa Hè Xanh
+    // 1.1. Danh sách tài khoản người dùng mẫu
+    users = [
+      UserAccount(
+        id: 'usr_001',
+        username: 'annguyen',
+        password: 'password123',
+        fullName: 'Nguyễn Văn An',
+        phone: '0987654321',
+        email: 'an.nguyen@sinhvien.edu.vn',
+        faculty: 'Khoa Công nghệ Thông tin & TT',
+        academicYear: 'Khóa 2022 - 2026',
+        role: 'volunteer',
+        studentId: '22120098',
+        createdAt: DateTime.now().subtract(const Duration(days: 30)),
+      ),
+      UserAccount(
+        id: 'usr_admin',
+        username: 'admin',
+        password: 'admin123',
+        fullName: 'Ban Chỉ Huy Chiến Dịch',
+        phone: '0903123456',
+        email: 'bch.muahexanh@sinhvien.edu.vn',
+        faculty: 'Đoàn - Hội Sinh Viên',
+        academicYear: 'Ban Chỉ Huy',
+        role: 'admin',
+        studentId: null,
+        createdAt: DateTime.now().subtract(const Duration(days: 60)),
+      ),
+    ];
+
+    // Mặc định chưa đăng nhập → sẽ hiển thị màn hình Auth
+    currentUser = null;
+
+    // 2. Danh sách Khoa / Viện của Trường
+    faculties = [
+      Faculty(
+        id: 'fac_001',
+        code: 'CNTT',
+        name: 'Khoa Công nghệ Thông tin & TT',
+        description: 'Phụ trách mũi nhọn Chuyển đổi số, phổ cập tin học cộng đồng và dịch vụ công trực tuyến.',
+        leaderName: 'TS. Nguyễn Văn Bình - Bí thư Đoàn khoa',
+        contactPhone: '0903123456',
+        colorValue: 0xFF1E88E5,
+      ),
+      Faculty(
+        id: 'fac_002',
+        code: 'KTXD',
+        name: 'Khoa Kỹ thuật Xây dựng',
+        description: 'Chuyên trách các công trình cầu giao thông nông thôn, bê tông hóa tuyến đường và sửa chữa nhà tình bạn.',
+        leaderName: 'ThS. Lê Hoàng Nam - Phó Bí thư Đoàn khoa',
+        contactPhone: '0918765432',
+        colorValue: 0xFFE65100,
+      ),
+      Faculty(
+        id: 'fac_003',
+        code: 'YD',
+        name: 'Khoa Y Dược & Sức Khỏe',
+        description: 'Khám bệnh, phát thuốc miễn phí cho hộ nghèo, tập huấn sơ cấp cứu và phòng chống dịch bệnh.',
+        leaderName: 'BS. Trần Mai Anh - Phụ trách Đội Y tế',
+        contactPhone: '0988112233',
+        colorValue: 0xFF00897B,
+      ),
+      Faculty(
+        id: 'fac_004',
+        code: 'SP',
+        name: 'Khoa Sư phạm & Ngôn ngữ',
+        description: 'Tổ chức các lớp học hè yêu thương, ôn tập văn hóa, rèn luyện kỹ năng sống cho thiếu nhi.',
+        leaderName: 'ThS. Phạm Thị Thu - Ban phong trào',
+        contactPhone: '0977445566',
+        colorValue: 0xFF7B1FA2,
+      ),
+      Faculty(
+        id: 'fac_005',
+        code: 'MT',
+        name: 'Khoa Môi trường & Đô thị',
+        description: 'Chiến dịch Ngày Chủ Nhật Xanh, xử lý điểm đen rác thải, trồng cây xanh bảo vệ cảnh quan trường và địa phương.',
+        leaderName: 'Kỹ sư Đặng Quốc Huy - Bí thư Chi đoàn',
+        contactPhone: '0933556677',
+        colorValue: 0xFF43A047,
+      ),
+    ];
+
+    // 3. Danh sách chiến dịch / hoạt động Mùa Hè Xanh
     final now = DateTime.now();
     campaigns = [
       Campaign(
@@ -62,6 +173,10 @@ class DataService extends ChangeNotifier {
         volunteerHours: 45,
         trainingPoints: 15,
         status: 'Đang tuyển',
+        facultyId: 'fac_002',
+        facultyName: 'Khoa Kỹ thuật Xây dựng',
+        isNearCampus: false,
+        distanceFromCampusKm: 145.0,
       ),
       Campaign(
         id: 'camp_002',
@@ -77,6 +192,10 @@ class DataService extends ChangeNotifier {
         volunteerHours: 35,
         trainingPoints: 12,
         status: 'Đang tuyển',
+        facultyId: 'fac_001',
+        facultyName: 'Khoa Công nghệ Thông tin & TT',
+        isNearCampus: false,
+        distanceFromCampusKm: 65.0,
       ),
       Campaign(
         id: 'camp_003',
@@ -92,6 +211,10 @@ class DataService extends ChangeNotifier {
         volunteerHours: 40,
         trainingPoints: 15,
         status: 'Đang diễn ra',
+        facultyId: 'fac_004',
+        facultyName: 'Khoa Sư phạm & Ngôn ngữ',
+        isNearCampus: false,
+        distanceFromCampusKm: 98.0,
       ),
       Campaign(
         id: 'camp_004',
@@ -107,10 +230,71 @@ class DataService extends ChangeNotifier {
         volunteerHours: 50,
         trainingPoints: 20,
         status: 'Đã hoàn thành',
+        facultyId: 'fac_003',
+        facultyName: 'Khoa Y Dược & Sức Khỏe',
+        isNearCampus: false,
+        distanceFromCampusKm: 260.0,
+      ),
+      Campaign(
+        id: 'camp_005',
+        title: 'Chuyển Đổi Số & Hướng Dẫn VNeID Tại Phường Linh Chiểu',
+        category: 'Chuyển đổi số',
+        location: 'UBND Phường Linh Chiểu, TP. Thủ Đức (Cạnh trường)',
+        startDate: now.add(const Duration(days: 1)),
+        endDate: now.add(const Duration(days: 7)),
+        targetVolunteers: 20,
+        currentRegistered: 14,
+        description: 'Phối hợp cùng UBND Phường kế bên trường đại học để hỗ trợ bà con kích hoạt VNeID định danh mức 2 và tích hợp thông tin thẻ BHYT.',
+        requirements: 'Sinh viên năng động, có điện thoại thông minh kết nối 4G/Wifi.',
+        volunteerHours: 20,
+        trainingPoints: 10,
+        status: 'Đang tuyển',
+        facultyId: 'fac_001',
+        facultyName: 'Khoa Công nghệ Thông tin & TT',
+        isNearCampus: true,
+        distanceFromCampusKm: 0.6,
+      ),
+      Campaign(
+        id: 'camp_006',
+        title: 'Ngày Chủ Nhật Xanh - Cải Tạo Mảng Xanh Khuôn Viên & KTX Trường',
+        category: 'Xây dựng công trình',
+        location: 'Khuôn viên chính & Khu Ký túc xá Sinh viên',
+        startDate: now.add(const Duration(days: 4)),
+        endDate: now.add(const Duration(days: 6)),
+        targetVolunteers: 40,
+        currentRegistered: 31,
+        description: 'Thu gom phân loại rác tái chế, trồng mới 120 cây bóng mát và hoa kiểng, chỉnh trang cảnh quan xanh sạch đẹp tại khuôn viên trường.',
+        requirements: 'Nhiệt huyết, thích hoạt động ngoài trời cải tạo môi trường học tập.',
+        volunteerHours: 15,
+        trainingPoints: 8,
+        status: 'Đang tuyển',
+        facultyId: 'fac_005',
+        facultyName: 'Khoa Môi trường & Đô thị',
+        isNearCampus: true,
+        distanceFromCampusKm: 0.1,
+      ),
+      Campaign(
+        id: 'camp_007',
+        title: 'Gia Sư Áo Xanh Cho Trẻ Em Cơ Nhỡ - Cơ Sở Gò Dưa Thủ Đức',
+        category: 'Dạy học hè',
+        location: 'Trung tâm Bảo trợ Trẻ em Tam Bình - Gò Dưa, TP. Thủ Đức',
+        startDate: now.subtract(const Duration(days: 14)),
+        endDate: now.subtract(const Duration(days: 2)),
+        targetVolunteers: 15,
+        currentRegistered: 15,
+        description: 'Đã hoàn thành 12 buổi dạy kèm kiến thức Toán, Anh văn và giao lưu trò chơi dân gian cho 45 em nhỏ có hoàn cảnh đặc biệt.',
+        requirements: 'Kiên nhẫn, yêu thương trẻ em.',
+        volunteerHours: 30,
+        trainingPoints: 12,
+        status: 'Đã hoàn thành',
+        facultyId: 'fac_004',
+        facultyName: 'Khoa Sư phạm & Ngôn ngữ',
+        isNearCampus: true,
+        distanceFromCampusKm: 3.5,
       ),
     ];
 
-    // 3. Đơn đăng ký tham gia mẫu
+    // 4. Đơn đăng ký tham gia mẫu
     registrations = [
       Registration(
         id: 'reg_001',
@@ -150,7 +334,7 @@ class DataService extends ChangeNotifier {
         volunteerName: 'Trần Thị Mai',
         studentId: '22145012',
         phone: '0912345678',
-        faculty: 'Y Dược & Điều Dưỡng',
+        faculty: 'Khoa Y Dược & Sức Khỏe',
         campaignId: 'camp_001',
         campaignTitle: 'Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên',
         registeredDate: now.subtract(const Duration(days: 3)),
@@ -166,7 +350,7 @@ class DataService extends ChangeNotifier {
         volunteerName: 'Lê Hoàng Long',
         studentId: '21110034',
         phone: '0903112233',
-        faculty: 'Kỹ Thuật Xây Dựng',
+        faculty: 'Khoa Kỹ thuật Xây dựng',
         campaignId: 'camp_001',
         campaignTitle: 'Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên',
         registeredDate: now.subtract(const Duration(days: 4)),
@@ -178,7 +362,7 @@ class DataService extends ChangeNotifier {
       ),
     ];
 
-    // Khởi tạo thông báo mẫu cho Admin
+    // 5. Thông báo mẫu cho Admin
     adminNotifications = [
       AdminNotification(
         id: 'notif_001',
@@ -197,34 +381,34 @@ class DataService extends ChangeNotifier {
       AdminNotification(
         id: 'notif_002',
         title: 'Sinh viên đăng ký hoạt động',
-        message: 'Sinh viên Trần Thị Mai (MSSV: 22145012, Khoa: Y Dược & Điều Dưỡng, SĐT: 0912345678) đã đăng ký tham gia "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên".',
+        message: 'Sinh viên Trần Thị Mai (MSSV: 22145012, Khoa: Khoa Y Dược & Sức Khỏe, SĐT: 0912345678) đã đăng ký tham gia "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên".',
         createdAt: now.subtract(const Duration(days: 3)),
         isRead: true,
         registrationId: 'reg_003',
         studentId: '22145012',
         studentName: 'Trần Thị Mai',
         phone: '0912345678',
-        faculty: 'Y Dược & Điều Dưỡng',
+        faculty: 'Khoa Y Dược & Sức Khỏe',
         campaignId: 'camp_001',
         campaignTitle: 'Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên',
       ),
       AdminNotification(
         id: 'notif_003',
         title: 'Sinh viên đăng ký hoạt động',
-        message: 'Sinh viên Lê Hoàng Long (MSSV: 21110034, Khoa: Kỹ Thuật Xây Dựng, SĐT: 0903112233) đã đăng ký tham gia "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên".',
+        message: 'Sinh viên Lê Hoàng Long (MSSV: 21110034, Khoa: Khoa Kỹ thuật Xây dựng, SĐT: 0903112233) đã đăng ký tham gia "Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên".',
         createdAt: now.subtract(const Duration(days: 4)),
         isRead: true,
         registrationId: 'reg_004',
         studentId: '21110034',
         studentName: 'Lê Hoàng Long',
         phone: '0903112233',
-        faculty: 'Kỹ Thuật Xây Dựng',
+        faculty: 'Khoa Kỹ thuật Xây dựng',
         campaignId: 'camp_001',
         campaignTitle: 'Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên',
       ),
     ];
 
-    // 4. Báo cáo nhiệm vụ và minh chứng mẫu
+    // 6. Báo cáo nhiệm vụ và minh chứng mẫu
     taskReports = [
       TaskReport(
         id: 'rep_001',
@@ -244,7 +428,7 @@ class DataService extends ChangeNotifier {
         feedback: 'Báo cáo rất chi tiết, hình ảnh minh chứng rõ ràng. Biểu dương tinh thần tích cực của đồng chí.',
         proofImageName: 'minh_chung_vneid_ap2.png',
         proofImageBytes: base64Decode(
-          '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',
+          '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',
         ),
       ),
       TaskReport(
@@ -258,6 +442,10 @@ class DataService extends ChangeNotifier {
         description: 'Đã kiểm đếm đầy đủ vật tư y tế, bông băng cồn đỏ, phát nước uống tăng lực cho anh em đội xây dựng thi công mố cầu số 1.',
         proofDescription: 'Biên bản bàn giao thực phẩm và ảnh chụp khu vực bếp ăn hậu cần dã chiến.',
         proofType: 'image',
+        proofImageName: 'minh_chung_bep_an_da_chien.png',
+        proofImageBytes: base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAZAAAAEECAIAAACJKvXOAAADnUlEQVR4nO3YwQ2CUBRFQTTUgQ1pSWywJCuyE2MB6k+MmmNmtrB4q5MLu2U7TgAF+18fADBKsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIGN+/vi6Xr51CcDd4XyaHrCwgAzBAv7lk3BkpAG8b+QHlIUFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAxD753XS8fvgTgBQsLyBAsIGO3bMdf3wAwxMICMgQLyBAsIEOwgAzBAjIEC8gQLCBDsICp4gZsZAv20jafvwAAAABJRU5ErkJggg==',
+        ),
         submittedAt: now.subtract(const Duration(hours: 5)),
         status: ReportStatus.pending,
         awardedHours: 0,
@@ -266,13 +454,13 @@ class DataService extends ChangeNotifier {
       ),
     ];
 
-    // 5. Ngân sách & Hậu cần theo biểu mẫu
+    // 7. Ngân sách & Hậu cần theo biểu mẫu
     budgetLogisticsMap['camp_001'] = ActivityBudgetLogistics(
       id: 'bl_001',
       campaignId: 'camp_001',
       campaignTitle: 'Xây Cầu Nông Thôn & Bê Tông Hóa Tuyến Đường Thanh Niên',
-      estimatedBudget: 35000000, // 35 triệu VNĐ
-      actualCost: 31800000,      // 31.8 triệu VNĐ
+      estimatedBudget: 35000000,
+      actualCost: 31800000,
       logisticsItems: [
         LogisticsItem(itemName: 'Áo thun Mùa Hè Xanh', quantity: 40, unit: 'Cái', note: 'Đã cấp phát đủ cho TNV'),
         LogisticsItem(itemName: 'Nón tai bèo Đoàn - Hội', quantity: 40, unit: 'Cái', note: 'Đã nhận từ Tỉnh Đoàn'),
@@ -288,8 +476,8 @@ class DataService extends ChangeNotifier {
       id: 'bl_002',
       campaignId: 'camp_002',
       campaignTitle: 'Chuyển Đổi Số Cộng Đồng & Hỗ Trợ Cài Đặt Dịch Vụ Công VNeID',
-      estimatedBudget: 12000000, // 12 triệu VNĐ
-      actualCost: 11200000,      // 11.2 triệu VNĐ
+      estimatedBudget: 12000000,
+      actualCost: 11200000,
       logisticsItems: [
         LogisticsItem(itemName: 'Áo thun Mùa Hè Xanh', quantity: 25, unit: 'Cái', note: 'Đã trang bị'),
         LogisticsItem(itemName: 'Nón tai bèo', quantity: 25, unit: 'Cái', note: 'Đã trang bị'),
@@ -301,9 +489,356 @@ class DataService extends ChangeNotifier {
     );
   }
 
+  // --- KẾT NỐI VÀ ĐỒNG BỘ REALTIME TỪ FIREBASE ---
+  void _initFirebase() {
+    // 1. Lắng nghe trạng thái mạng kết nối Firebase
+    _firebaseService.initConnectionListener((connected) {
+      _isFirebaseConnected = connected;
+      notifyListeners();
+    });
+
+    // 2. Tự động kiểm tra nếu database Firebase đang rỗng thì nạp dữ liệu mẫu lên
+    _autoSeedIfEmpty();
+
+    // 3. Đăng ký các stream lắng nghe realtime từ Firebase
+    _listenToFirebaseStreams();
+  }
+
+  Future<void> _autoSeedIfEmpty() async {
+    try {
+      final isEmpty = await _firebaseService.isDatabaseEmpty();
+      if (isEmpty) {
+        debugPrint('[DataService] Firebase Database đang rỗng, tiến hành tạo dữ liệu mẫu ban đầu...');
+        await syncToFirebase();
+      }
+    } catch (e) {
+      debugPrint('[DataService] Lỗi autoSeedIfEmpty: $e');
+    }
+  }
+
+  void _listenToFirebaseStreams() {
+    // 1. Khoa
+    _firebaseService.facultiesStream?.listen((event) {
+      if (event.snapshot.value != null) {
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final list = <Faculty>[];
+          final seenIds = <String>{};
+          final seenNames = <String>{};
+          data.forEach((k, v) {
+            final faculty = Faculty.fromMap(Map<String, dynamic>.from(v as Map));
+            final trimmedName = faculty.name.trim();
+            if (trimmedName.isNotEmpty && !seenIds.contains(faculty.id) && !seenNames.contains(trimmedName)) {
+              seenIds.add(faculty.id);
+              seenNames.add(trimmedName);
+              list.add(faculty);
+            }
+          });
+          if (list.isNotEmpty) {
+            faculties = list;
+            notifyListeners();
+          }
+        } catch (e) {
+          debugPrint('[DataService] Lỗi parse faculties từ Firebase: $e');
+        }
+      }
+    });
+
+    // 2. Chiến dịch
+    _firebaseService.campaignsStream?.listen((event) {
+      if (event.snapshot.value != null) {
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final list = <Campaign>[];
+          data.forEach((k, v) {
+            list.add(Campaign.fromMap(Map<String, dynamic>.from(v as Map)));
+          });
+          list.sort((a, b) => b.startDate.compareTo(a.startDate));
+          campaigns = list;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('[DataService] Lỗi parse campaigns từ Firebase: $e');
+        }
+      }
+    });
+
+    // 3. Đăng ký
+    _firebaseService.registrationsStream?.listen((event) {
+      if (event.snapshot.value != null) {
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final list = <Registration>[];
+          data.forEach((k, v) {
+            list.add(Registration.fromMap(Map<String, dynamic>.from(v as Map)));
+          });
+          list.sort((a, b) => b.registeredDate.compareTo(a.registeredDate));
+          registrations = list;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('[DataService] Lỗi parse registrations từ Firebase: $e');
+        }
+      }
+    });
+
+    // 4. Báo cáo nhiệm vụ
+    _firebaseService.taskReportsStream?.listen((event) {
+      if (event.snapshot.value != null) {
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final list = <TaskReport>[];
+          data.forEach((k, v) {
+            list.add(TaskReport.fromMap(Map<String, dynamic>.from(v as Map)));
+          });
+          list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+          taskReports = list;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('[DataService] Lỗi parse taskReports từ Firebase: $e');
+        }
+      }
+    });
+
+    // 5. Ngân sách & Hậu cần
+    _firebaseService.budgetLogisticsStream?.listen((event) {
+      if (event.snapshot.value != null) {
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final map = <String, ActivityBudgetLogistics>{};
+          data.forEach((k, v) {
+            map[k] = ActivityBudgetLogistics.fromMap(Map<String, dynamic>.from(v as Map));
+          });
+          budgetLogisticsMap = map;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('[DataService] Lỗi parse budgetLogistics từ Firebase: $e');
+        }
+      }
+    });
+
+    // 6. Thông báo Admin
+    _firebaseService.adminNotificationsStream?.listen((event) {
+      if (event.snapshot.value != null) {
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final list = <AdminNotification>[];
+          data.forEach((k, v) {
+            list.add(AdminNotification.fromMap(Map<String, dynamic>.from(v as Map)));
+          });
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          adminNotifications = list;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('[DataService] Lỗi parse adminNotifications từ Firebase: $e');
+        }
+      }
+    });
+
+    // 7. Sinh viên
+    _firebaseService.volunteersStream?.listen((event) {
+      if (event.snapshot.value != null) {
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          if (data.containsKey(currentVolunteer.id)) {
+            currentVolunteer = Volunteer.fromMap(
+              Map<String, dynamic>.from(data[currentVolunteer.id] as Map),
+            );
+            notifyListeners();
+          }
+        } catch (e) {
+          debugPrint('[DataService] Lỗi parse volunteer từ Firebase: $e');
+        }
+      }
+    });
+
+    // 8. Tài khoản Người dùng
+    _firebaseService.usersStream?.listen((event) {
+      if (event.snapshot.value != null) {
+        try {
+          final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+          final list = <UserAccount>[];
+          data.forEach((k, v) {
+            list.add(UserAccount.fromMap(Map<String, dynamic>.from(v as Map)));
+          });
+          users = list;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('[DataService] Lỗi parse users từ Firebase: $e');
+        }
+      }
+    });
+  }
+
+  // --- HÀM THỰC HIỆN ĐẨY TOÀN BỘ DỮ LIỆU LÊN FIREBASE (MANUAL / BUTTON) ---
+  Future<bool> syncToFirebase() async {
+    _isSyncingFirebase = true;
+    _lastSyncMessage = 'Đang đồng bộ dữ liệu lên Firebase...';
+    notifyListeners();
+
+    try {
+      await _firebaseService.seedDatabase(
+        defaultVolunteer: currentVolunteer,
+        defaultFaculties: faculties,
+        defaultCampaigns: campaigns,
+        defaultRegistrations: registrations,
+        defaultTaskReports: taskReports,
+        defaultBudgetLogistics: budgetLogisticsMap,
+        defaultNotifications: adminNotifications,
+        defaultUsers: users,
+      );
+      _lastSyncMessage = 'Đồng bộ Firebase thành công vào lúc ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}';
+      _isSyncingFirebase = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastSyncMessage = 'Đồng bộ thất bại: $e';
+      _isSyncingFirebase = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // --- QUẢN LÝ XÁC THỰC: ĐĂNG KÝ, ĐĂNG NHẬP, ĐĂNG XUẤT ---
+
+  // 1. Đăng ký tài khoản mới và lưu lên Firebase
+  Future<({bool success, String message, UserAccount? user})> registerUser({
+    required String fullName,
+    required String phone,
+    required String email,
+    required String faculty,
+    required String academicYear,
+    required String username,
+    required String password,
+    String? studentId,
+    bool autoLogin = false,
+  }) async {
+    final cleanUsername = username.trim().toLowerCase();
+    final cleanPassword = password.trim();
+
+    if (cleanUsername.isEmpty || cleanPassword.isEmpty) {
+      return (success: false, message: 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.', user: null);
+    }
+
+    if (cleanPassword.length < 6) {
+      return (success: false, message: 'Mật khẩu phải có tối thiểu 6 ký tự.', user: null);
+    }
+
+    // Kiểm tra trùng username
+    if (users.any((u) => u.username.toLowerCase() == cleanUsername)) {
+      return (success: false, message: 'Tên đăng nhập "$cleanUsername" đã được đăng ký. Vui lòng chọn tên khác.', user: null);
+    }
+
+    // Kiểm tra trùng email nếu có nhập
+    if (email.trim().isNotEmpty && users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
+      return (success: false, message: 'Địa chỉ email này đã được sử dụng.', user: null);
+    }
+
+    final newUserId = 'usr_${DateTime.now().millisecondsSinceEpoch}';
+    final newUser = UserAccount(
+      id: newUserId,
+      username: cleanUsername,
+      password: cleanPassword,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      faculty: faculty.trim(),
+      academicYear: academicYear.trim(),
+      role: 'volunteer',
+      studentId: studentId?.trim(),
+      createdAt: DateTime.now(),
+    );
+
+    // Lưu vào danh sách cục bộ
+    users.add(newUser);
+    // Đẩy trực tiếp lên Firebase Realtime Database
+    await _firebaseService.saveUser(newUser);
+
+    // Tự động tạo hồ sơ sinh viên tương ứng
+    final newVol = Volunteer(
+      id: 'vol_${newUserId.replaceFirst('usr_', '')}',
+      studentId: studentId?.trim().isNotEmpty == true
+          ? studentId!.trim()
+          : 'SV${newUserId.substring(newUserId.length - 6)}',
+      fullName: fullName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      faculty: faculty.trim(),
+      teamName: 'Đội hình Sinh viên Tình nguyện',
+      totalHours: 0,
+      totalPoints: 0,
+      completedActivities: 0,
+    );
+    currentVolunteer = newVol;
+    _firebaseService.saveVolunteer(newVol);
+
+    if (autoLogin) {
+      currentUser = newUser;
+      notifyListeners();
+    }
+
+    return (success: true, message: 'Đăng ký tài khoản thành công!', user: newUser);
+  }
+
+  // Hoàn tất đăng nhập và cập nhật trạng thái người dùng
+  void completeLogin(UserAccount user) {
+    currentUser = user;
+
+    // Cập nhật thông tin sinh viên tương ứng nếu là tài khoản volunteer
+    if (user.role == 'volunteer') {
+      currentVolunteer = currentVolunteer.copyWith(
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        faculty: user.faculty,
+        studentId: user.studentId ?? currentVolunteer.studentId,
+      );
+    }
+
+    notifyListeners();
+  }
+
+  // 2. Đăng nhập tài khoản
+  ({bool success, String message, UserAccount? user}) loginUser({
+    required String username,
+    required String password,
+    bool applyImmediately = true,
+  }) {
+    final cleanUsername = username.trim().toLowerCase();
+    final cleanPassword = password.trim();
+
+    final index = users.indexWhere(
+      (u) => (u.username.toLowerCase() == cleanUsername || u.email.toLowerCase() == cleanUsername) &&
+             u.password == cleanPassword,
+    );
+
+    if (index == -1) {
+      return (
+        success: false,
+        message: 'Tên đăng nhập hoặc mật khẩu không chính xác.',
+        user: null,
+      );
+    }
+
+    final user = users[index];
+    if (applyImmediately) {
+      completeLogin(user);
+    }
+
+    return (
+      success: true,
+      message: 'Đăng nhập thành công! Chào mừng ${user.fullName}',
+      user: user,
+    );
+  }
+
+  // 3. Đăng xuất tài khoản
+  void logout() {
+    currentUser = null;
+    notifyListeners();
+  }
+
   // --- ACTIONS CHO SINH VIÊN ---
 
-  // Đăng ký tham gia chiến dịch với thông tin sinh viên nhập từ Form
+  // Đăng ký tham gia chiến dịch
   bool registerForCampaign({
     required Campaign campaign,
     String? studentId,
@@ -353,9 +888,11 @@ class DataService extends ChangeNotifier {
     // Cập nhật số lượng chiến sĩ đã đăng ký của chiến dịch
     final campIndex = campaigns.indexWhere((c) => c.id == campaign.id);
     if (campIndex >= 0) {
-      campaigns[campIndex] = campaigns[campIndex].copyWith(
+      final updatedCamp = campaigns[campIndex].copyWith(
         currentRegistered: campaigns[campIndex].currentRegistered + 1,
       );
+      campaigns[campIndex] = updatedCamp;
+      _firebaseService.saveCampaign(updatedCamp);
     }
 
     // Tạo thông báo mới cho Admin Ban Chỉ Huy
@@ -375,6 +912,10 @@ class DataService extends ChangeNotifier {
     );
     adminNotifications.insert(0, notif);
 
+    // Đồng bộ lên Firebase Realtime Database
+    _firebaseService.saveRegistration(newReg);
+    _firebaseService.saveAdminNotification(notif);
+
     notifyListeners();
     return true;
   }
@@ -383,16 +924,19 @@ class DataService extends ChangeNotifier {
   void markNotificationAsRead(String id) {
     final index = adminNotifications.indexWhere((n) => n.id == id);
     if (index >= 0 && !adminNotifications[index].isRead) {
-      adminNotifications[index].isRead = true;
+      final updated = adminNotifications[index].copyWith(isRead: true);
+      adminNotifications[index] = updated;
+      _firebaseService.saveAdminNotification(updated);
       notifyListeners();
     }
   }
 
   void markAllNotificationsAsRead() {
     bool hasUnread = false;
-    for (var n in adminNotifications) {
-      if (!n.isRead) {
-        n.isRead = true;
+    for (int i = 0; i < adminNotifications.length; i++) {
+      if (!adminNotifications[i].isRead) {
+        adminNotifications[i] = adminNotifications[i].copyWith(isRead: true);
+        _firebaseService.saveAdminNotification(adminNotifications[i]);
         hasUnread = true;
       }
     }
@@ -403,6 +947,7 @@ class DataService extends ChangeNotifier {
 
   void deleteNotification(String id) {
     adminNotifications.removeWhere((n) => n.id == id);
+    _firebaseService.deleteAdminNotification(id);
     notifyListeners();
   }
 
@@ -435,6 +980,8 @@ class DataService extends ChangeNotifier {
     );
 
     taskReports.insert(0, newReport);
+    _firebaseService.saveTaskReport(newReport);
+
     notifyListeners();
   }
 
@@ -452,7 +999,7 @@ class DataService extends ChangeNotifier {
     final index = taskReports.indexWhere((r) => r.id == reportId);
     if (index != -1) {
       final old = taskReports[index];
-      taskReports[index] = old.copyWith(
+      final updated = old.copyWith(
         title: title ?? old.title,
         description: description ?? old.description,
         proofDescription: proofDescription ?? old.proofDescription,
@@ -462,11 +1009,13 @@ class DataService extends ChangeNotifier {
         status: resubmit ? ReportStatus.pending : old.status,
         submittedAt: resubmit ? DateTime.now() : old.submittedAt,
       );
+      taskReports[index] = updated;
+      _firebaseService.saveTaskReport(updated);
       notifyListeners();
     }
   }
 
-  // Cập nhật thông tin cá nhân (nhóm máu và kỹ năng là tuỳ chọn)
+  // Cập nhật thông tin cá nhân
   void updateVolunteerProfile({
     required String fullName,
     required String phone,
@@ -483,10 +1032,51 @@ class DataService extends ChangeNotifier {
       bloodType: bloodType,
       skills: skills,
     );
+    _firebaseService.saveVolunteer(currentVolunteer);
     notifyListeners();
   }
 
   // --- ACTIONS CHO ADMIN / BAN CHỈ HUY ---
+
+  // Quản lý Khoa / Viện
+  void saveFaculty(Faculty faculty) {
+    final index = faculties.indexWhere((f) => f.id == faculty.id);
+    if (index >= 0) {
+      faculties[index] = faculty;
+      for (int i = 0; i < campaigns.length; i++) {
+        if (campaigns[i].facultyId == faculty.id) {
+          final updatedCamp = campaigns[i].copyWith(facultyName: faculty.name);
+          campaigns[i] = updatedCamp;
+          _firebaseService.saveCampaign(updatedCamp);
+        }
+      }
+    } else {
+      faculties.add(faculty);
+    }
+    _firebaseService.saveFaculty(faculty);
+    notifyListeners();
+  }
+
+  void deleteFaculty(String facultyId) {
+    faculties.removeWhere((f) => f.id == facultyId);
+    for (int i = 0; i < campaigns.length; i++) {
+      if (campaigns[i].facultyId == facultyId) {
+        final updatedCamp = campaigns[i].copyWith(facultyId: null, facultyName: null);
+        campaigns[i] = updatedCamp;
+        _firebaseService.saveCampaign(updatedCamp);
+      }
+    }
+    _firebaseService.deleteFaculty(facultyId);
+    notifyListeners();
+  }
+
+  List<Campaign> getCampaignsByFaculty(String facultyId) {
+    return campaigns.where((c) => c.facultyId == facultyId).toList();
+  }
+
+  int getCampaignCountByFaculty(String facultyId) {
+    return campaigns.where((c) => c.facultyId == facultyId).length;
+  }
 
   // Tạo hoặc cập nhật chiến dịch
   void saveCampaign(Campaign campaign) {
@@ -495,8 +1085,7 @@ class DataService extends ChangeNotifier {
       campaigns[index] = campaign;
     } else {
       campaigns.insert(0, campaign);
-      // Tạo sẵn bản ghi hậu cần mặc định
-      budgetLogisticsMap[campaign.id] = ActivityBudgetLogistics(
+      final newBudget = ActivityBudgetLogistics(
         id: 'bl_${campaign.id}',
         campaignId: campaign.id,
         campaignTitle: campaign.title,
@@ -510,7 +1099,10 @@ class DataService extends ChangeNotifier {
         generalNotes: 'Khởi tạo theo kế hoạch hoạt động mới.',
         lastUpdated: DateTime.now(),
       );
+      budgetLogisticsMap[campaign.id] = newBudget;
+      _firebaseService.saveBudgetLogistics(newBudget);
     }
+    _firebaseService.saveCampaign(campaign);
     notifyListeners();
   }
 
@@ -518,6 +1110,7 @@ class DataService extends ChangeNotifier {
   void deleteCampaign(String id) {
     campaigns.removeWhere((c) => c.id == id);
     budgetLogisticsMap.remove(id);
+    _firebaseService.deleteCampaign(id);
     notifyListeners();
   }
 
@@ -526,11 +1119,13 @@ class DataService extends ChangeNotifier {
     final index = registrations.indexWhere((r) => r.id == registrationId);
     if (index >= 0) {
       final reg = registrations[index];
-      registrations[index] = reg.copyWith(
+      final updated = reg.copyWith(
         status: RegistrationStatus.approved,
         assignedTeam: assignedTeam,
         note: note ?? 'Đã được Ban chỉ huy phê duyệt tham gia đội hình.',
       );
+      registrations[index] = updated;
+      _firebaseService.saveRegistration(updated);
       notifyListeners();
     }
   }
@@ -540,10 +1135,12 @@ class DataService extends ChangeNotifier {
     final index = registrations.indexWhere((r) => r.id == registrationId);
     if (index >= 0) {
       final reg = registrations[index];
-      registrations[index] = reg.copyWith(
+      final updated = reg.copyWith(
         status: RegistrationStatus.rejected,
         note: reason,
       );
+      registrations[index] = updated;
+      _firebaseService.saveRegistration(updated);
       notifyListeners();
     }
   }
@@ -552,9 +1149,11 @@ class DataService extends ChangeNotifier {
   void updateAttendance(String registrationId, int attendanceDays) {
     final index = registrations.indexWhere((r) => r.id == registrationId);
     if (index >= 0) {
-      registrations[index] = registrations[index].copyWith(
+      final updated = registrations[index].copyWith(
         attendanceDays: attendanceDays,
       );
+      registrations[index] = updated;
+      _firebaseService.saveRegistration(updated);
       notifyListeners();
     }
   }
@@ -570,19 +1169,21 @@ class DataService extends ChangeNotifier {
     final index = taskReports.indexWhere((r) => r.id == reportId);
     if (index >= 0) {
       final old = taskReports[index];
-      taskReports[index] = old.copyWith(
+      final updated = old.copyWith(
         status: status,
         awardedHours: awardedHours,
         awardedPoints: awardedPoints,
         feedback: feedback,
       );
+      taskReports[index] = updated;
+      _firebaseService.saveTaskReport(updated);
 
-      // Nếu duyệt và là báo cáo của sinh viên hiện tại, cộng điểm
       if (status == ReportStatus.approved && old.volunteerId == currentVolunteer.id) {
         currentVolunteer = currentVolunteer.copyWith(
           totalHours: currentVolunteer.totalHours + awardedHours,
           totalPoints: currentVolunteer.totalPoints + awardedPoints,
         );
+        _firebaseService.saveVolunteer(currentVolunteer);
       }
       notifyListeners();
     }
@@ -592,13 +1193,17 @@ class DataService extends ChangeNotifier {
   void issueCertificate(String registrationId) {
     final index = registrations.indexWhere((r) => r.id == registrationId);
     if (index >= 0) {
-      registrations[index] = registrations[index].copyWith(
+      final updated = registrations[index].copyWith(
         isCertified: true,
       );
+      registrations[index] = updated;
+      _firebaseService.saveRegistration(updated);
+
       if (registrations[index].volunteerId == currentVolunteer.id) {
         currentVolunteer = currentVolunteer.copyWith(
           completedActivities: currentVolunteer.completedActivities + 1,
         );
+        _firebaseService.saveVolunteer(currentVolunteer);
       }
       notifyListeners();
     }
@@ -607,6 +1212,7 @@ class DataService extends ChangeNotifier {
   // Cập nhật ngân sách và hậu cần
   void updateBudgetLogistics(ActivityBudgetLogistics data) {
     budgetLogisticsMap[data.campaignId] = data;
+    _firebaseService.saveBudgetLogistics(data);
     notifyListeners();
   }
 

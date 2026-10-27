@@ -277,8 +277,31 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                       ),
                     ],
+                    if (existingReg?.status == RegistrationStatus.approved) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event_available, color: AppTheme.primaryGreen, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Số buổi tham gia đã điểm danh: ${existingReg?.attendanceDays ?? 0} buổi',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primaryGreenDark),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     if (existingReg?.note != null) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         'Ghi chú BCH: ${existingReg!.note}',
                         style: const TextStyle(fontSize: 13, color: AppTheme.textDark),
