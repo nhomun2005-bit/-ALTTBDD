@@ -125,10 +125,21 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   }
 
   void _showNewReportModal({String? preselectedCampaignId}) {
+    final currentUserId = _dataService.currentUser?.id;
+    final currentVolId = _dataService.currentVolunteer.id;
+    final currentStudentId = (_dataService.currentUser?.studentId != null && _dataService.currentUser!.studentId!.isNotEmpty)
+        ? _dataService.currentUser!.studentId!
+        : _dataService.currentVolunteer.studentId;
+    final currentName = _dataService.currentUser?.fullName ?? _dataService.currentVolunteer.fullName;
+
     // Lấy các chiến dịch mà sinh viên đã được duyệt
-    final approvedCampaigns = _dataService.registrations
-        .where((r) => r.volunteerId == _dataService.currentVolunteer.id && r.status == RegistrationStatus.approved)
-        .toList();
+    final approvedCampaigns = _dataService.registrations.where((r) {
+      final isMatch = r.volunteerId == currentVolId ||
+          (currentUserId != null && r.volunteerId == currentUserId) ||
+          (currentStudentId.isNotEmpty && r.studentId == currentStudentId) ||
+          r.volunteerName == currentName;
+      return isMatch && r.status == RegistrationStatus.approved;
+    }).toList();
 
     if (approvedCampaigns.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -631,9 +642,19 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final myReports = _dataService.taskReports
-        .where((r) => r.volunteerId == _dataService.currentVolunteer.id)
-        .toList();
+    final currentUserId = _dataService.currentUser?.id;
+    final currentVolId = _dataService.currentVolunteer.id;
+    final currentStudentId = (_dataService.currentUser?.studentId != null && _dataService.currentUser!.studentId!.isNotEmpty)
+        ? _dataService.currentUser!.studentId!
+        : _dataService.currentVolunteer.studentId;
+    final currentName = _dataService.currentUser?.fullName ?? _dataService.currentVolunteer.fullName;
+
+    final myReports = _dataService.taskReports.where((r) {
+      return r.volunteerId == currentVolId ||
+          (currentUserId != null && r.volunteerId == currentUserId) ||
+          (currentStudentId.isNotEmpty && r.studentId == currentStudentId) ||
+          r.volunteerName == currentName;
+    }).toList();
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
     return Scaffold(

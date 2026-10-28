@@ -32,11 +32,22 @@ class _RegistrationStatusScreenState extends State<RegistrationStatusScreen> {
     if (mounted) setState(() {});
   }
 
+
   @override
   Widget build(BuildContext context) {
-    final myRegistrations = _dataService.registrations
-        .where((r) => r.volunteerId == _dataService.currentVolunteer.id)
-        .toList();
+    final currentUserId = _dataService.currentUser?.id;
+    final currentVolId = _dataService.currentVolunteer.id;
+    final currentStudentId = (_dataService.currentUser?.studentId != null && _dataService.currentUser!.studentId!.isNotEmpty)
+        ? _dataService.currentUser!.studentId!
+        : _dataService.currentVolunteer.studentId;
+    final currentName = _dataService.currentUser?.fullName ?? _dataService.currentVolunteer.fullName;
+
+    final myRegistrations = _dataService.registrations.where((r) {
+      return r.volunteerId == currentVolId ||
+          (currentUserId != null && r.volunteerId == currentUserId) ||
+          (currentStudentId.isNotEmpty && r.studentId == currentStudentId) ||
+          r.volunteerName == currentName;
+    }).toList();
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
     return Scaffold(
@@ -260,7 +271,6 @@ class _RegistrationStatusScreenState extends State<RegistrationStatusScreen> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 8),
                         ],
 
                         // Phản hồi / Lý do

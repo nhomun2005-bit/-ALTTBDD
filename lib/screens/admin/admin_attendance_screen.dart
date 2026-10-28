@@ -33,6 +33,7 @@ class _AdminAttendanceScreenState extends State<AdminAttendanceScreen> {
     if (mounted) setState(() {});
   }
 
+
   @override
   Widget build(BuildContext context) {
     final campaigns = _dataService.campaigns;
@@ -72,27 +73,31 @@ class _AdminAttendanceScreenState extends State<AdminAttendanceScreen> {
                   ),
                 ],
               ),
-              // Chọn chiến dịch
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.borderLight),
-                ),
-                child: DropdownButton<String>(
-                  value: _selectedCampaignId,
-                  underline: const SizedBox(),
-                  items: campaigns.map((c) {
-                    return DropdownMenuItem(
-                      value: c.id,
-                      child: Text(c.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedCampaignId = val);
-                  },
-                ),
+              Row(
+                children: [
+                  // Chọn chiến dịch
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.borderLight),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedCampaignId,
+                      underline: const SizedBox(),
+                      items: campaigns.map((c) {
+                        return DropdownMenuItem(
+                          value: c.id,
+                          child: Text(c.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setState(() => _selectedCampaignId = val);
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

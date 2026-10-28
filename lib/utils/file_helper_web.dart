@@ -4,6 +4,7 @@
 import 'dart:html' as html;
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 
 class PickedImage {
   final Uint8List bytes;
@@ -15,6 +16,26 @@ class PickedImage {
     required this.name,
     this.path,
   });
+}
+
+Uint8List compressImageIfNeeded(Uint8List bytes) {
+  if (bytes.lengthInBytes <= 450 * 1024) return bytes;
+  try {
+    final image = img.decodeImage(bytes);
+    if (image == null) return bytes;
+    img.Image resized = image;
+    if (image.width > 1200 || image.height > 1200) {
+      resized = img.copyResize(
+        image,
+        width: image.width > image.height ? 1200 : null,
+        height: image.height >= image.width ? 1200 : null,
+      );
+    }
+    final compressed = img.encodeJpg(resized, quality: 80);
+    return Uint8List.fromList(compressed);
+  } catch (e) {
+    return bytes;
+  }
 }
 
 /// Pick an image file from the browser
@@ -39,9 +60,23 @@ Future<PickedImage?> pickImageFromDevice() async {
     reader.readAsArrayBuffer(file);
     reader.onLoadEnd.listen((e) {
       input.remove();
-      final bytes = reader.result as Uint8List;
+      final res = reader.result;
+      Uint8List bytes;
+      if (res is ByteBuffer) {
+        bytes = res.asUint8List();
+      } else if (res is Uint8List) {
+        bytes = res;
+      } else if (res is List<int>) {
+        bytes = Uint8List.fromList(res);
+      } else {
+        bytes = Uint8List(0);
+      }
+
+      // Nén ảnh nếu dung lượng lớn để lưu Realtime Database mượt mà
+      final optimizedBytes = compressImageIfNeeded(bytes);
+
       if (!completer.isCompleted) {
-        completer.complete(PickedImage(bytes: bytes, name: file.name));
+        completer.complete(PickedImage(bytes: optimizedBytes, name: file.name));
       }
     });
   });

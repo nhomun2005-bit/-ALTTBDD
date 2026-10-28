@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/faculty.dart';
 import '../models/campaign.dart';
@@ -23,6 +24,16 @@ class FirebaseService {
       return null;
     }
   }
+
+  FirebaseAuth? get _auth {
+    try {
+      return FirebaseAuth.instance;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  bool get isFirebaseAuthAvailable => _auth != null;
 
   bool _isConnected = false;
   bool get isConnected => _isConnected;
@@ -281,4 +292,59 @@ class FirebaseService {
   Stream<DatabaseEvent>? get adminNotificationsStream => _db?.ref('admin_notifications').onValue;
   Stream<DatabaseEvent>? get volunteersStream => _db?.ref('volunteers').onValue;
   Stream<DatabaseEvent>? get usersStream => _db?.ref('users').onValue;
+
+  // --- FIREBASE AUTHENTICATION METHODS ---
+
+  User? get currentAuthUser => _auth?.currentUser;
+  Stream<User?>? get authStateChanges => _auth?.authStateChanges();
+
+  // Đăng ký tài khoản mới trên Firebase Authentication
+  Future<UserCredential?> signUpWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    final auth = _auth;
+    if (auth == null) return null;
+    return await auth.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password.trim(),
+    );
+  }
+
+  // Đăng nhập tài khoản với Firebase Authentication
+  Future<UserCredential?> signInWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    final auth = _auth;
+    if (auth == null) return null;
+    return await auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password.trim(),
+    );
+  }
+
+  // Gửi email khôi phục mật khẩu qua Firebase Authentication
+  Future<void> sendPasswordResetEmail(String email) async {
+    final auth = _auth;
+    if (auth != null) {
+      try {
+        await auth.sendPasswordResetEmail(email: email.trim());
+      } catch (e) {
+        debugPrint('[FirebaseService] Lỗi khi gửi sendPasswordResetEmail: $e');
+      }
+    }
+  }
+
+  // Đăng xuất khỏi Firebase Authentication
+  Future<void> signOut() async {
+    final auth = _auth;
+    if (auth != null) {
+      try {
+        await auth.signOut();
+      } catch (e) {
+        debugPrint('[FirebaseService] Lỗi khi signOut: $e');
+      }
+    }
+  }
 }

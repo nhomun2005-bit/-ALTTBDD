@@ -1,6 +1,6 @@
-// Desktop (Windows, macOS, Linux) and Mobile implementation
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 
 class PickedImage {
   final Uint8List bytes;
@@ -12,6 +12,26 @@ class PickedImage {
     required this.name,
     this.path,
   });
+}
+
+Uint8List compressImageIfNeeded(Uint8List bytes) {
+  if (bytes.lengthInBytes <= 450 * 1024) return bytes;
+  try {
+    final image = img.decodeImage(bytes);
+    if (image == null) return bytes;
+    img.Image resized = image;
+    if (image.width > 1200 || image.height > 1200) {
+      resized = img.copyResize(
+        image,
+        width: image.width > image.height ? 1200 : null,
+        height: image.height >= image.width ? 1200 : null,
+      );
+    }
+    final compressed = img.encodeJpg(resized, quality: 80);
+    return Uint8List.fromList(compressed);
+  } catch (e) {
+    return bytes;
+  }
 }
 
 /// Pick an image file from the device (Native file dialog on Windows)
@@ -39,7 +59,8 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
       final selectedPath = result.stdout.toString().trim();
       if (selectedPath.isNotEmpty && File(selectedPath).existsSync()) {
         final file = File(selectedPath);
-        final bytes = await file.readAsBytes();
+        final rawBytes = await file.readAsBytes();
+        final bytes = compressImageIfNeeded(rawBytes);
         final name = selectedPath.split(RegExp(r'[\\/]')).last;
         return PickedImage(bytes: bytes, name: name, path: selectedPath);
       }

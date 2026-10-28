@@ -20,35 +20,46 @@ void main() {
     expect(find.text('MÙA HÈ XANH'), findsWidgets);
     expect(find.text('Cổng Thông Tin Tình Nguyện & Quản Lý Chiến Dịch'), findsOneWidget);
 
-    // Đăng nhập tài khoản demo
+    // Đăng nhập tài khoản demo vai trò Sinh viên
     dataService.loginUser(username: 'annguyen', password: 'password123');
     await tester.pumpAndSettle();
 
-    // Sau khi đăng nhập với vai trò sinh viên:
+    // Sau khi đăng nhập vai trò sinh viên:
     expect(find.text('CHIẾN DỊCH MÙA HÈ XANH'), findsOneWidget);
     expect(find.text('Sinh viên'), findsWidgets);
     expect(find.text('Đổi Tài Khoản'), findsOneWidget);
     expect(find.text('Đăng xuất'), findsOneWidget);
-    // Sinh viên KHÔNG thấy nút và không thể truy cập trang Admin
-    expect(find.text('Web Admin Ban Chỉ Huy'), findsNothing);
+    expect(find.text('CỔNG SINH VIÊN TÌNH NGUYỆN (/student)'), findsOneWidget);
 
-    // Chuyển sang tài khoản Admin
-    dataService.loginUser(username: 'admin', password: 'admin123');
+    // Kiểm thử tài khoản Sinh viên truy cập /admin -> Bị từ chối truy cập 403
+    dataService.loginUser(username: 'annguyen', password: 'password123');
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MainContainerScreen(key: ValueKey('test_student_access_admin'), initialMode: AppMode.admin),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    // Admin có thể truy cập cả 2
-    expect(find.text('Ban Chỉ Huy'), findsWidgets);
-    expect(find.text('Web Admin Ban Chỉ Huy'), findsOneWidget);
-    expect(find.text('Mobile App Sinh Viên'), findsOneWidget);
+    expect(find.text('403 - KHÔNG CÓ QUYỀN TRUY CẬP'), findsOneWidget);
+    expect(find.text('TỪ CHỐI TRUY CẬP (/admin)'), findsOneWidget);
+    expect(find.text('Chuyển Về Cổng Sinh Viên (/student)'), findsOneWidget);
 
-    // Bấm chuyển sang trang Admin
-    await tester.tap(find.text('Web Admin Ban Chỉ Huy'));
-    await tester.pumpAndSettle();
-    expect(find.text('Bảng Tổng Quan'), findsWidgets);
-
-    // Bấm quay lại App Sinh Viên
-    await tester.tap(find.text('Mobile App Sinh Viên'));
+    // Bấm nút chuyển về cổng sinh viên
+    await tester.tap(find.text('Chuyển Về Cổng Sinh Viên (/student)'));
     await tester.pumpAndSettle();
     expect(find.text('Hoạt động'), findsWidgets);
+
+    // Chuyển sang tài khoản Admin và kiểm thử giao diện Admin qua Route /admin
+    dataService.loginUser(username: 'admin', password: 'admin123');
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MainContainerScreen(key: ValueKey('test_admin_portal'), initialMode: AppMode.admin),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ban Chỉ Huy'), findsWidgets);
+    expect(find.text('CỔNG QUẢN TRỊ BAN CHỈ HUY (/admin)'), findsOneWidget);
+    expect(find.text('Bảng Tổng Quan'), findsWidgets);
   });
 }

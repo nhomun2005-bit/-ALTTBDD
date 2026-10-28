@@ -13,9 +13,9 @@ import 'admin_export_screen.dart';
 import 'admin_faculty_screen.dart';
 
 class AdminMainScreen extends StatefulWidget {
-  final VoidCallback onSwitchToStudentApp;
+  final VoidCallback? onSwitchToStudentApp;
 
-  const AdminMainScreen({super.key, required this.onSwitchToStudentApp});
+  const AdminMainScreen({super.key, this.onSwitchToStudentApp});
 
   @override
   State<AdminMainScreen> createState() => _AdminMainScreenState();
@@ -381,33 +381,15 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                   ),
                 ),
 
-                // Chuyển sang App Sinh viên
                 const Divider(color: Colors.white24, height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: widget.onSwitchToStudentApp,
-                          icon: const Icon(Icons.phone_android, size: 16, color: Colors.amberAccent),
-                          label: const Text(
-                            'Xem App Sinh Viên',
-                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.amberAccent),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Phiên bản tối ưu mạng 3G yếu • v1.0',
-                        style: TextStyle(color: Colors.white38, fontSize: 10),
-                      ),
-                    ],
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Center(
+                    child: Text(
+                      'Hệ Thống Web Quản Trị • v1.0\nChuyển trang qua URL /admin & /student',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white38, fontSize: 10, height: 1.4),
+                    ),
                   ),
                 ),
               ],
@@ -475,12 +457,6 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: widget.onSwitchToStudentApp,
-                    icon: const Icon(Icons.smartphone, size: 18, color: AppTheme.youthBlue),
-                    label: const Text('Giao Diện Sinh Viên', style: TextStyle(color: AppTheme.youthBlue, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 12),
                 ],

@@ -114,9 +114,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     setState(() => _isLoading = true);
 
-    // Xác thực thông tin mà chưa đăng nhập ngay để hiển thị màn hình loading
-    final result = _dataService.loginUser(
-      username: username,
+    // Xác thực tài khoản với Firebase Authentication
+    final result = await _dataService.loginWithFirebaseAuth(
+      usernameOrEmail: username,
       password: password,
       applyImmediately: false,
     );
@@ -736,7 +736,340 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _showForgotPasswordDialog,
+            icon: const Icon(Icons.lock_reset_rounded, size: 16, color: AppTheme.primaryGreenDark),
+            label: const Text(
+              'Quên mật khẩu?',
+              style: TextStyle(
+                color: AppTheme.primaryGreenDark,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  // Hộp thoại khôi phục mật khẩu qua Email OTP
+  void _showForgotPasswordDialog() {
+    final messenger = ScaffoldMessenger.of(context);
+    final emailCtrl = TextEditingController(
+      text: _loginUsernameCtrl.text.contains('@') ? _loginUsernameCtrl.text.trim() : '',
+    );
+    final otpCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+
+    int step = 1; // 1: Nhập email, 2: Nhập OTP & mật khẩu mới
+    bool isSubmitting = false;
+    String? dialogError;
+    bool obscureNewPass = true;
+    bool obscureConfirmPass = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isSubmitting,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.primaryGreenLight,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.lock_reset_rounded, color: AppTheme.primaryGreenDark, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  step == 1 ? 'Khôi Phục Mật Khẩu' : 'Nhập Mã OTP & Mật Khẩu Mới',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textDark),
+                                ),
+                                Text(
+                                  step == 1
+                                      ? 'Nhận mã xác thực OTP qua Email'
+                                      : 'Xác thực mã 6 số gửi đến ${emailCtrl.text.trim()}',
+                                  style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+
+                      if (dialogError != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          margin: const EdgeInsets.only(bottom: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline, size: 16, color: Colors.red),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(dialogError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Bước 1: Nhập email
+                      if (step == 1) ...[
+                        const Text(
+                          'Nhập địa chỉ email liên kết với tài khoản sinh viên hoặc ban chỉ huy của bạn để nhận mã OTP khôi phục.',
+                          style: TextStyle(fontSize: 13, color: AppTheme.textDark, height: 1.4),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextFieldLabel('Địa chỉ Email *'),
+                        TextFormField(
+                          controller: emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: _inputDecoration(
+                            hintText: 'ví dụ: an.nguyen@sinhvien.edu.vn',
+                            prefixIcon: Icons.email_outlined,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 46,
+                          child: ElevatedButton.icon(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    final email = emailCtrl.text.trim();
+                                    if (email.isEmpty || !email.contains('@')) {
+                                      setModalState(() => dialogError = 'Vui lòng nhập địa chỉ email hợp lệ.');
+                                      return;
+                                    }
+                                    setModalState(() {
+                                      isSubmitting = true;
+                                      dialogError = null;
+                                    });
+
+                                    final res = await _dataService.sendPasswordResetOtp(email);
+                                    setModalState(() => isSubmitting = false);
+
+                                    if (res.success) {
+                                      setModalState(() {
+                                        step = 2;
+                                        dialogError = null;
+                                      });
+                                    } else {
+                                      setModalState(() => dialogError = res.message);
+                                    }
+                                  },
+                            icon: isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Icon(Icons.send_rounded, size: 18),
+                            label: Text(
+                              isSubmitting ? 'ĐANG GỬI MÃ OTP...' : 'GỬI MÃ XÁC THỰC OTP',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryGreen,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // Bước 2: Nhập OTP & Mật khẩu mới
+                      if (step == 2) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          margin: const EdgeInsets.only(bottom: 14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.youthBlueLight,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.mark_email_read_outlined, size: 20, color: AppTheme.youthBlue),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Mã xác thực 6 số đã được gửi tới email ${emailCtrl.text.trim()}. Vui lòng kiểm tra hộp thư đến (hoặc hòm thư Rác / Spam) để lấy mã nhập vào bên dưới (hiệu lực trong 5 phút).',
+                                  style: const TextStyle(fontSize: 12, color: AppTheme.youthBlue, height: 1.4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _buildTextFieldLabel('Mã OTP (6 chữ số) *'),
+                        TextFormField(
+                          controller: otpCtrl,
+                          keyboardType: TextInputType.number,
+                          maxLength: 6,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 6),
+                          decoration: _inputDecoration(
+                            hintText: '123456',
+                            prefixIcon: Icons.pin_outlined,
+                          ).copyWith(counterText: ''),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTextFieldLabel('Mật khẩu mới (tối thiểu 6 ký tự) *'),
+                        TextFormField(
+                          controller: newPassCtrl,
+                          obscureText: obscureNewPass,
+                          decoration: _inputDecoration(
+                            hintText: 'Nhập mật khẩu mới',
+                            prefixIcon: Icons.lock_outline,
+                            suffixIcon: IconButton(
+                              icon: Icon(obscureNewPass ? Icons.visibility_off : Icons.visibility, size: 18),
+                              onPressed: () => setModalState(() => obscureNewPass = !obscureNewPass),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTextFieldLabel('Xác nhận mật khẩu mới *'),
+                        TextFormField(
+                          controller: confirmPassCtrl,
+                          obscureText: obscureConfirmPass,
+                          decoration: _inputDecoration(
+                            hintText: 'Nhập lại mật khẩu mới',
+                            prefixIcon: Icons.lock_outline,
+                            suffixIcon: IconButton(
+                              icon: Icon(obscureConfirmPass ? Icons.visibility_off : Icons.visibility, size: 18),
+                              onPressed: () => setModalState(() => obscureConfirmPass = !obscureConfirmPass),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            TextButton(
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () => setModalState(() {
+                                        step = 1;
+                                        dialogError = null;
+                                      }),
+                              child: const Text('Quay lại', style: TextStyle(color: AppTheme.textMuted)),
+                            ),
+                            const Spacer(),
+                            ElevatedButton(
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () async {
+                                      final otp = otpCtrl.text.trim();
+                                      final newPass = newPassCtrl.text.trim();
+                                      final confirmPass = confirmPassCtrl.text.trim();
+
+                                      if (otp.length != 6) {
+                                        setModalState(() => dialogError = 'Vui lòng nhập đủ 6 chữ số mã OTP.');
+                                        return;
+                                      }
+                                      if (newPass.length < 6) {
+                                        setModalState(() => dialogError = 'Mật khẩu mới phải có tối thiểu 6 ký tự.');
+                                        return;
+                                      }
+                                      if (newPass != confirmPass) {
+                                        setModalState(() => dialogError = 'Mật khẩu xác nhận không khớp.');
+                                        return;
+                                      }
+
+                                      setModalState(() {
+                                        isSubmitting = true;
+                                        dialogError = null;
+                                      });
+
+                                      final res = await _dataService.verifyOtpAndResetPassword(
+                                        email: emailCtrl.text.trim(),
+                                        otp: otp,
+                                        newPassword: newPass,
+                                      );
+
+                                      setModalState(() => isSubmitting = false);
+
+                                      if (res.success) {
+                                        if (dialogCtx.mounted) {
+                                          Navigator.pop(dialogCtx);
+                                        }
+                                        _loginUsernameCtrl.text = emailCtrl.text.trim();
+                                        _loginPasswordCtrl.text = newPass;
+                                        if (mounted) {
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text(res.message),
+                                              backgroundColor: AppTheme.primaryGreenDark,
+                                              behavior: SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        }
+                                      } else {
+                                        setModalState(() => dialogError = res.message);
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryGreen,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: isSubmitting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Text('ĐỔI MẬT KHẨU', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

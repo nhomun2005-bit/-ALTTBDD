@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/campaign.dart';
 import '../models/volunteer.dart';
 import '../models/registration.dart';
@@ -587,7 +589,18 @@ class DataService extends ChangeNotifier {
           final data = Map<String, dynamic>.from(event.snapshot.value as Map);
           final list = <TaskReport>[];
           data.forEach((k, v) {
-            list.add(TaskReport.fromMap(Map<String, dynamic>.from(v as Map)));
+            var item = TaskReport.fromMap(Map<String, dynamic>.from(v as Map));
+            // Bảo toàn ảnh minh chứng trong RAM nếu bản tin Firebase chưa đồng bộ kịp chuỗi Base64
+            if (item.proofImageBytes == null) {
+              final existingIndex = taskReports.indexWhere((r) => r.id == item.id);
+              if (existingIndex != -1 && taskReports[existingIndex].proofImageBytes != null) {
+                item = item.copyWith(
+                  proofImageBytes: taskReports[existingIndex].proofImageBytes,
+                  proofImageName: taskReports[existingIndex].proofImageName,
+                );
+              }
+            }
+            list.add(item);
           });
           list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
           taskReports = list;
@@ -699,7 +712,7 @@ class DataService extends ChangeNotifier {
 
   // --- QUẢN LÝ XÁC THỰC: ĐĂNG KÝ, ĐĂNG NHẬP, ĐĂNG XUẤT ---
 
-  // 1. Đăng ký tài khoản mới và lưu lên Firebase
+  // 1. Đăng ký tài khoản mới qua Firebase Authentication và lưu dữ liệu mở rộng lên RTDB
   Future<({bool success, String message, UserAccount? user})> registerUser({
     required String fullName,
     required String phone,
@@ -713,13 +726,14 @@ class DataService extends ChangeNotifier {
   }) async {
     final cleanUsername = username.trim().toLowerCase();
     final cleanPassword = password.trim();
+    final cleanEmail = email.trim().toLowerCase();
 
     if (cleanUsername.isEmpty || cleanPassword.isEmpty) {
       return (success: false, message: 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.', user: null);
     }
 
     if (cleanPassword.length < 6) {
-      return (success: false, message: 'Mật khẩu phải có tối thiểu 6 ký tự.', user: null);
+      return (success: false, message: 'Mật khẩu phải có tối thiểu 6 ký tự theo tiêu chuẩn bảo mật.', user: null);
     }
 
     // Kiểm tra trùng username
@@ -728,18 +742,57 @@ class DataService extends ChangeNotifier {
     }
 
     // Kiểm tra trùng email nếu có nhập
-    if (email.trim().isNotEmpty && users.any((u) => u.email.toLowerCase() == email.trim().toLowerCase())) {
+    if (cleanEmail.isNotEmpty && users.any((u) => u.email.toLowerCase() == cleanEmail)) {
       return (success: false, message: 'Địa chỉ email này đã được sử dụng.', user: null);
     }
 
-    final newUserId = 'usr_${DateTime.now().millisecondsSinceEpoch}';
+    String newUserId = 'usr_${DateTime.now().millisecondsSinceEpoch}';
+
+    // 1. Nếu Firebase Authentication khả dụng, tạo tài khoản trên Firebase Auth
+    if (_firebaseService.isFirebaseAuthAvailable) {
+      try {
+        final credential = await _firebaseService.signUpWithEmailPassword(
+          email: cleanEmail,
+          password: cleanPassword,
+        );
+        if (credential?.user != null) {
+          newUserId = credential!.user!.uid;
+          await credential.user!.updateDisplayName(fullName.trim());
+        }
+      } on FirebaseAuthException catch (e) {
+        String errorMsg = 'Đăng ký Firebase Authentication thất bại.';
+        switch (e.code) {
+          case 'email-already-in-use':
+            errorMsg = 'Địa chỉ email "$cleanEmail" đã được đăng ký trên Firebase Authentication.';
+            break;
+          case 'invalid-email':
+            errorMsg = 'Địa chỉ email không đúng định dạng chuẩn.';
+            break;
+          case 'weak-password':
+            errorMsg = 'Mật khẩu quá yếu theo chính sách bảo mật Firebase (tối thiểu 6 ký tự).';
+            break;
+          case 'operation-not-allowed':
+            errorMsg = 'Tính năng đăng nhập Email/Password chưa được kích hoạt trên Firebase Console.';
+            break;
+          case 'network-request-failed':
+            errorMsg = 'Lỗi kết nối mạng đến máy chủ Firebase. Vui lòng thử lại.';
+            break;
+          default:
+            errorMsg = 'Lỗi Firebase Auth (${e.code}): ${e.message ?? ''}';
+        }
+        return (success: false, message: errorMsg, user: null);
+      } catch (e) {
+        debugPrint('[DataService] Lỗi ngoại lệ FirebaseAuth: $e');
+      }
+    }
+
     final newUser = UserAccount(
       id: newUserId,
       username: cleanUsername,
       password: cleanPassword,
       fullName: fullName.trim(),
       phone: phone.trim(),
-      email: email.trim(),
+      email: cleanEmail,
       faculty: faculty.trim(),
       academicYear: academicYear.trim(),
       role: 'volunteer',
@@ -757,9 +810,9 @@ class DataService extends ChangeNotifier {
       id: 'vol_${newUserId.replaceFirst('usr_', '')}',
       studentId: studentId?.trim().isNotEmpty == true
           ? studentId!.trim()
-          : 'SV${newUserId.substring(newUserId.length - 6)}',
+          : 'SV${newUserId.length >= 6 ? newUserId.substring(newUserId.length - 6) : newUserId}',
       fullName: fullName.trim(),
-      email: email.trim(),
+      email: cleanEmail,
       phone: phone.trim(),
       faculty: faculty.trim(),
       teamName: 'Đội hình Sinh viên Tình nguyện',
@@ -775,28 +828,157 @@ class DataService extends ChangeNotifier {
       notifyListeners();
     }
 
-    return (success: true, message: 'Đăng ký tài khoản thành công!', user: newUser);
+    return (success: true, message: 'Đăng ký tài khoản thành công với Firebase Authentication!', user: newUser);
   }
 
   // Hoàn tất đăng nhập và cập nhật trạng thái người dùng
   void completeLogin(UserAccount user) {
     currentUser = user;
 
-    // Cập nhật thông tin sinh viên tương ứng nếu là tài khoản volunteer
-    if (user.role == 'volunteer') {
-      currentVolunteer = currentVolunteer.copyWith(
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone,
-        faculty: user.faculty,
-        studentId: user.studentId ?? currentVolunteer.studentId,
-      );
-    }
+    final assignedStudentId = (user.studentId != null && user.studentId!.trim().isNotEmpty)
+        ? user.studentId!.trim()
+        : (user.role == 'admin' ? 'BCH_${user.username}' : currentVolunteer.studentId);
+
+    currentVolunteer = currentVolunteer.copyWith(
+      id: user.studentId?.isNotEmpty == true
+          ? 'vol_${user.studentId}'
+          : 'vol_${user.id.replaceFirst('usr_', '')}',
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      faculty: user.faculty,
+      studentId: assignedStudentId,
+    );
 
     notifyListeners();
   }
 
-  // 2. Đăng nhập tài khoản
+  // 2. Đăng nhập tài khoản tích hợp Firebase Authentication
+  Future<({bool success, String message, UserAccount? user})> loginWithFirebaseAuth({
+    required String usernameOrEmail,
+    required String password,
+    bool applyImmediately = true,
+  }) async {
+    final cleanInput = usernameOrEmail.trim().toLowerCase();
+    final cleanPassword = password.trim();
+
+    // 1. Xác định email đích để gửi tới Firebase Auth
+    String targetEmail = cleanInput;
+    UserAccount? localUser;
+
+    // Tìm trong danh sách users nếu nhập username thay vì email
+    final userIndex = users.indexWhere(
+      (u) => u.username.toLowerCase() == cleanInput || u.email.toLowerCase() == cleanInput,
+    );
+    if (userIndex != -1) {
+      localUser = users[userIndex];
+      targetEmail = localUser.email.toLowerCase();
+    }
+
+    // 2. Nếu Firebase Authentication khả dụng và có địa chỉ email hợp lệ
+    if (_firebaseService.isFirebaseAuthAvailable && targetEmail.contains('@')) {
+      try {
+        final credential = await _firebaseService.signInWithEmailPassword(
+          email: targetEmail,
+          password: cleanPassword,
+        );
+
+        if (credential?.user != null) {
+          final uid = credential!.user!.uid;
+
+          // Tìm UserAccount khớp với UID hoặc email
+          UserAccount? matchedUser = users.firstWhere(
+            (u) => u.id == uid || u.email.toLowerCase() == targetEmail,
+            orElse: () {
+              // Nếu tài khoản mới được tạo trực tiếp trên Firebase Auth console, tự động tạo hồ sơ UserAccount
+              final createdUser = UserAccount(
+                id: uid,
+                username: credential.user!.email?.split('@').first ?? 'user_$uid',
+                password: cleanPassword,
+                fullName: credential.user!.displayName ?? 'Chiến Sĩ Tình Nguyện',
+                phone: '',
+                email: credential.user!.email ?? targetEmail,
+                faculty: 'Khoa Công nghệ Thông tin & TT',
+                academicYear: 'Khóa 2022 - 2026',
+                role: 'volunteer',
+                createdAt: DateTime.now(),
+              );
+              users.add(createdUser);
+              _firebaseService.saveUser(createdUser);
+              return createdUser;
+            },
+          );
+
+          if (applyImmediately) {
+            completeLogin(matchedUser);
+          }
+
+          return (
+            success: true,
+            message: 'Đăng nhập Firebase Authentication thành công! Chào mừng ${matchedUser.fullName}',
+            user: matchedUser,
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        // Nếu lỗi tài khoản không tìm thấy trên Firebase Auth, kiểm tra xem có phải tài khoản demo nội bộ không (như admin)
+        if ((e.code == 'user-not-found' || e.code == 'invalid-credential') &&
+            localUser != null &&
+            localUser.password == cleanPassword) {
+          // Tự động đồng bộ tạo tài khoản demo này lên Firebase Auth để lần sau đăng nhập trực tiếp
+          try {
+            await _firebaseService.signUpWithEmailPassword(
+              email: localUser.email,
+              password: cleanPassword,
+            );
+          } catch (_) {}
+
+          if (applyImmediately) {
+            completeLogin(localUser);
+          }
+          return (
+            success: true,
+            message: 'Đăng nhập thành công! Chào mừng ${localUser.fullName}',
+            user: localUser,
+          );
+        }
+
+        String errorMsg = 'Đăng nhập thất bại.';
+        switch (e.code) {
+          case 'user-not-found':
+          case 'wrong-password':
+          case 'invalid-credential':
+            errorMsg = 'Tên đăng nhập / Email hoặc mật khẩu không chính xác.';
+            break;
+          case 'invalid-email':
+            errorMsg = 'Địa chỉ email không đúng định dạng.';
+            break;
+          case 'user-disabled':
+            errorMsg = 'Tài khoản này đã bị vô hiệu hóa trên Firebase.';
+            break;
+          case 'too-many-requests':
+            errorMsg = 'Bạn đã thử đăng nhập sai quá nhiều lần. Vui lòng đợi trong giây lát.';
+            break;
+          case 'network-request-failed':
+            errorMsg = 'Không thể kết nối đến Firebase Auth. Kiểm tra mạng internet của bạn.';
+            break;
+          default:
+            errorMsg = 'Lỗi xác thực (${e.code}): ${e.message ?? ''}';
+        }
+        return (success: false, message: errorMsg, user: null);
+      } catch (e) {
+        debugPrint('[DataService] Ngoại lệ FirebaseAuth signIn: $e');
+      }
+    }
+
+    // 3. Fallback cho môi trường test hoặc local accounts
+    return loginUser(
+      username: usernameOrEmail,
+      password: password,
+      applyImmediately: applyImmediately,
+    );
+  }
+
+  // Phương thức đăng nhập local / fallback (dùng cho tests và offline)
   ({bool success, String message, UserAccount? user}) loginUser({
     required String username,
     required String password,
@@ -833,7 +1015,126 @@ class DataService extends ChangeNotifier {
   // 3. Đăng xuất tài khoản
   void logout() {
     currentUser = null;
+    _firebaseService.signOut();
     notifyListeners();
+  }
+
+  // --- QUẢN LÝ QUÊN MẬT KHẨU & KHÔI PHỤC QUA EMAIL OTP ---
+
+  final Map<String, ({String otp, DateTime expiry})> _pendingPasswordResetOtps = {};
+
+  // Gửi mã OTP xác thực khôi phục mật khẩu tới email
+  Future<({bool success, String message, String? otp})> sendPasswordResetOtp(String email) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty || !cleanEmail.contains('@')) {
+      return (
+        success: false,
+        message: 'Vui lòng nhập địa chỉ email hợp lệ.',
+        otp: null,
+      );
+    }
+
+    // Kiểm tra tài khoản có tồn tại không
+    final userExists = users.any((u) => u.email.toLowerCase() == cleanEmail);
+    if (!userExists) {
+      return (
+        success: false,
+        message: 'Không tìm thấy tài khoản nào liên kết với email này ($cleanEmail).',
+        otp: null,
+      );
+    }
+
+    // Sinh mã OTP 6 số ngẫu nhiên
+    final random = Random();
+    final otp = (100000 + random.nextInt(900000)).toString();
+    _pendingPasswordResetOtps[cleanEmail] = (
+      otp: otp,
+      expiry: DateTime.now().add(const Duration(minutes: 5)),
+    );
+
+    // In mã OTP ra terminal console để hỗ trợ kiểm thử và theo dõi hệ thống
+    debugPrint('[Email Service] ========================================');
+    debugPrint('[Email Service] Gửi mã xác thực OTP về hòm thư: $cleanEmail');
+    debugPrint('[Email Service] Mã OTP bảo mật: $otp (Thời hạn 5 phút)');
+    debugPrint('[Email Service] ========================================');
+
+    // Nếu Firebase Auth khả dụng, có thể gửi đồng thời link email reset của Firebase
+    if (_firebaseService.isFirebaseAuthAvailable) {
+      try {
+        await _firebaseService.sendPasswordResetEmail(cleanEmail);
+      } catch (e) {
+        debugPrint('[DataService] Gửi email Firebase reset password: $e');
+      }
+    }
+
+    return (
+      success: true,
+      message: 'Mã xác thực OTP đã được gửi đến email $cleanEmail.',
+      otp: otp,
+    );
+  }
+
+  // Xác thực mã OTP và cập nhật mật khẩu mới
+  Future<({bool success, String message})> verifyOtpAndResetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanOtp = otp.trim();
+    final cleanNewPassword = newPassword.trim();
+
+    if (cleanNewPassword.length < 6) {
+      return (
+        success: false,
+        message: 'Mật khẩu mới phải có ít nhất 6 ký tự.',
+      );
+    }
+
+    final pending = _pendingPasswordResetOtps[cleanEmail];
+    if (pending == null) {
+      return (
+        success: false,
+        message: 'Chưa có yêu cầu gửi OTP hoặc mã đã hết hạn. Vui lòng bấm gửi lại.',
+      );
+    }
+
+    if (DateTime.now().isAfter(pending.expiry)) {
+      _pendingPasswordResetOtps.remove(cleanEmail);
+      return (
+        success: false,
+        message: 'Mã OTP đã hết hạn (sau 5 phút). Vui lòng yêu cầu mã mới.',
+      );
+    }
+
+    if (pending.otp != cleanOtp) {
+      return (
+        success: false,
+        message: 'Mã OTP không chính xác. Vui lòng kiểm tra lại.',
+      );
+    }
+
+    // Cập nhật mật khẩu trong danh sách người dùng
+    final userIndex = users.indexWhere((u) => u.email.toLowerCase() == cleanEmail);
+    if (userIndex != -1) {
+      final updatedUser = users[userIndex].copyWith(password: cleanNewPassword);
+      users[userIndex] = updatedUser;
+      _firebaseService.saveUser(updatedUser);
+
+      // Xóa mã OTP sau khi sử dụng thành công
+      _pendingPasswordResetOtps.remove(cleanEmail);
+      notifyListeners();
+
+      return (
+        success: true,
+        message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay bằng mật khẩu mới.',
+      );
+    }
+
+    return (
+      success: false,
+      message: 'Không tìm thấy tài khoản người dùng để cập nhật.',
+    );
   }
 
   // --- ACTIONS CHO SINH VIÊN ---
@@ -962,11 +1263,19 @@ class DataService extends ChangeNotifier {
     Uint8List? proofImageBytes,
     String? proofImageName,
   }) {
+    final vId = (currentUser != null && currentUser!.studentId?.isNotEmpty == true)
+        ? 'vol_${currentUser!.studentId}'
+        : currentVolunteer.id;
+    final vName = currentUser?.fullName ?? currentVolunteer.fullName;
+    final sId = (currentUser?.studentId != null && currentUser!.studentId!.isNotEmpty)
+        ? currentUser!.studentId!
+        : currentVolunteer.studentId;
+
     final newReport = TaskReport(
       id: 'rep_${DateTime.now().millisecondsSinceEpoch}',
-      volunteerId: currentVolunteer.id,
-      volunteerName: currentVolunteer.fullName,
-      studentId: currentVolunteer.studentId,
+      volunteerId: vId,
+      volunteerName: vName,
+      studentId: sId,
       campaignId: campaignId,
       campaignTitle: campaignTitle,
       title: title,
@@ -1157,6 +1466,7 @@ class DataService extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   // Đánh giá minh chứng nhiệm vụ và cộng điểm/giờ
   void evaluateTaskReport({
