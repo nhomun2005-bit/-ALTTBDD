@@ -920,8 +920,8 @@ class DataService extends ChangeNotifier {
           );
         }
       } on FirebaseAuthException catch (e) {
-        // Nếu lỗi tài khoản không tìm thấy trên Firebase Auth, kiểm tra xem có phải tài khoản demo nội bộ không (như admin)
-        if ((e.code == 'user-not-found' || e.code == 'invalid-credential') &&
+        // Nếu lỗi tài khoản không tìm thấy trên Firebase Auth hoặc mật khẩu vừa đổi qua OTP nội bộ
+        if ((e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'wrong-password') &&
             localUser != null &&
             localUser.password == cleanPassword) {
           // Tự động đồng bộ tạo tài khoản demo này lên Firebase Auth để lần sau đăng nhập trực tiếp
@@ -1023,45 +1023,161 @@ class DataService extends ChangeNotifier {
 
   final Map<String, ({String otp, DateTime expiry})> _pendingPasswordResetOtps = {};
 
-  // Gửi mã OTP xác thực khôi phục mật khẩu tới email
-  Future<({bool success, String message, String? otp})> sendPasswordResetOtp(String email) async {
-    final cleanEmail = email.trim().toLowerCase();
-    if (cleanEmail.isEmpty || !cleanEmail.contains('@')) {
+  // Tìm tài khoản theo username, email hoặc MSSV
+  UserAccount? findUserByAccountOrEmail(String accountOrEmail) {
+    final clean = accountOrEmail.trim().toLowerCase();
+    if (clean.isEmpty) return null;
+    for (final u in users) {
+      if (u.username.toLowerCase() == clean ||
+          u.email.toLowerCase() == clean ||
+          (u.studentId != null && u.studentId!.toLowerCase() == clean)) {
+        return u;
+      }
+    }
+    return null;
+  }
+
+  // Gửi liên kết đặt lại mật khẩu qua email liên kết với tài khoản
+  Future<({bool success, String message, String? targetEmail, String? username})>
+      sendPasswordResetEmailLink(String accountOrEmail) async {
+    final cleanInput = accountOrEmail.trim().toLowerCase();
+    if (cleanInput.isEmpty) {
       return (
         success: false,
-        message: 'Vui lòng nhập địa chỉ email hợp lệ.',
-        otp: null,
+        message: 'Vui lòng nhập tên tài khoản hoặc địa chỉ email.',
+        targetEmail: null,
+        username: null,
       );
     }
 
-    // Kiểm tra tài khoản có tồn tại không
-    final userExists = users.any((u) => u.email.toLowerCase() == cleanEmail);
-    if (!userExists) {
+    String targetEmail = cleanInput;
+    String? matchedUsername;
+
+    // Tìm tài khoản trong cơ sở dữ liệu theo username, email hoặc MSSV
+    final matchedUser = findUserByAccountOrEmail(cleanInput);
+    if (matchedUser != null) {
+      targetEmail = matchedUser.email.toLowerCase();
+      matchedUsername = matchedUser.username;
+    } else {
       return (
         success: false,
-        message: 'Không tìm thấy tài khoản nào liên kết với email này ($cleanEmail).',
+        message: cleanInput.contains('@')
+            ? 'Không tìm thấy tài khoản nào liên kết với email này ($accountOrEmail).'
+            : 'Không tìm thấy tài khoản nào có tên "$accountOrEmail". Vui lòng kiểm tra lại.',
+        targetEmail: null,
+        username: null,
+      );
+    }
+
+    if (targetEmail.isEmpty || !targetEmail.contains('@')) {
+      return (
+        success: false,
+        message: 'Tài khoản này chưa có địa chỉ email hợp lệ để nhận liên kết khôi phục.',
+        targetEmail: null,
+        username: matchedUsername,
+      );
+    }
+
+    // Gửi email đặt lại mật khẩu từ Firebase Auth
+    if (_firebaseService.isFirebaseAuthAvailable) {
+      try {
+        await _firebaseService.sendPasswordResetEmail(targetEmail);
+      } catch (e) {
+        debugPrint('[DataService] Lỗi khi gửi Firebase password reset email: $e');
+        return (
+          success: false,
+          message: 'Không thể gửi email qua Firebase ($e). Vui lòng kiểm tra lại kết nối mạng.',
+          targetEmail: targetEmail,
+          username: matchedUsername,
+        );
+      }
+    }
+
+    debugPrint('[Email Service] ========================================');
+    debugPrint('[Email Service] Đã gửi liên kết đặt lại mật khẩu đến email: $targetEmail');
+    if (matchedUsername != null) {
+      debugPrint('[Email Service] Tài khoản liên kết: $matchedUsername');
+    }
+    debugPrint('[Email Service] ========================================');
+
+    return (
+      success: true,
+      message: 'Liên kết đặt lại mật khẩu đã được gửi đến $targetEmail.',
+      targetEmail: targetEmail,
+      username: matchedUsername,
+    );
+  }
+
+  // Gửi mã OTP xác thực khôi phục mật khẩu tới email liên kết với tài khoản
+  Future<({bool success, String message, String? otp, String? targetEmail, String? username})>
+      sendPasswordResetOtp(String accountOrEmail) async {
+    final cleanInput = accountOrEmail.trim().toLowerCase();
+    if (cleanInput.isEmpty) {
+      return (
+        success: false,
+        message: 'Vui lòng nhập tên tài khoản hoặc địa chỉ email.',
         otp: null,
+        targetEmail: null,
+        username: null,
+      );
+    }
+
+    String targetEmail = cleanInput;
+    String? matchedUsername;
+
+    // Tìm tài khoản trong cơ sở dữ liệu theo username, email hoặc MSSV
+    final matchedUser = findUserByAccountOrEmail(cleanInput);
+    if (matchedUser != null) {
+      targetEmail = matchedUser.email.toLowerCase();
+      matchedUsername = matchedUser.username;
+    } else {
+      // Nếu không tìm thấy trong danh sách tài khoản
+      return (
+        success: false,
+        message: cleanInput.contains('@')
+            ? 'Không tìm thấy tài khoản nào liên kết với email này ($accountOrEmail).'
+            : 'Không tìm thấy tài khoản nào có tên "$accountOrEmail". Vui lòng kiểm tra lại.',
+        otp: null,
+        targetEmail: null,
+        username: null,
+      );
+    }
+
+    if (targetEmail.isEmpty || !targetEmail.contains('@')) {
+      return (
+        success: false,
+        message: 'Tài khoản này chưa có địa chỉ email hợp lệ để nhận mã xác thực.',
+        otp: null,
+        targetEmail: null,
+        username: matchedUsername,
       );
     }
 
     // Sinh mã OTP 6 số ngẫu nhiên
     final random = Random();
     final otp = (100000 + random.nextInt(900000)).toString();
-    _pendingPasswordResetOtps[cleanEmail] = (
-      otp: otp,
-      expiry: DateTime.now().add(const Duration(minutes: 5)),
-    );
+    final expiry = DateTime.now().add(const Duration(minutes: 5));
+
+    // Lưu mã OTP theo cả email, username và chuỗi nhập vào để xác thực thuận tiện
+    _pendingPasswordResetOtps[targetEmail] = (otp: otp, expiry: expiry);
+    if (matchedUsername != null) {
+      _pendingPasswordResetOtps[matchedUsername.toLowerCase()] = (otp: otp, expiry: expiry);
+    }
+    _pendingPasswordResetOtps[cleanInput] = (otp: otp, expiry: expiry);
 
     // In mã OTP ra terminal console để hỗ trợ kiểm thử và theo dõi hệ thống
     debugPrint('[Email Service] ========================================');
-    debugPrint('[Email Service] Gửi mã xác thực OTP về hòm thư: $cleanEmail');
+    debugPrint('[Email Service] Gửi mã xác thực OTP về hòm thư: $targetEmail');
+    if (matchedUsername != null) {
+      debugPrint('[Email Service] Tài khoản liên kết: $matchedUsername');
+    }
     debugPrint('[Email Service] Mã OTP bảo mật: $otp (Thời hạn 5 phút)');
     debugPrint('[Email Service] ========================================');
 
-    // Nếu Firebase Auth khả dụng, có thể gửi đồng thời link email reset của Firebase
+    // Nếu Firebase Auth khả dụng, gửi liên kết khôi phục email của Firebase tới đúng email đích
     if (_firebaseService.isFirebaseAuthAvailable) {
       try {
-        await _firebaseService.sendPasswordResetEmail(cleanEmail);
+        await _firebaseService.sendPasswordResetEmail(targetEmail);
       } catch (e) {
         debugPrint('[DataService] Gửi email Firebase reset password: $e');
       }
@@ -1069,8 +1185,10 @@ class DataService extends ChangeNotifier {
 
     return (
       success: true,
-      message: 'Mã xác thực OTP đã được gửi đến email $cleanEmail.',
+      message: 'Mã xác thực OTP đã được tạo cho tài khoản liên kết email $targetEmail.',
       otp: otp,
+      targetEmail: targetEmail,
+      username: matchedUsername,
     );
   }
 
@@ -1080,7 +1198,7 @@ class DataService extends ChangeNotifier {
     required String otp,
     required String newPassword,
   }) async {
-    final cleanEmail = email.trim().toLowerCase();
+    final cleanInput = email.trim().toLowerCase();
     final cleanOtp = otp.trim();
     final cleanNewPassword = newPassword.trim();
 
@@ -1091,7 +1209,15 @@ class DataService extends ChangeNotifier {
       );
     }
 
-    final pending = _pendingPasswordResetOtps[cleanEmail];
+    // Tra cứu mã OTP pending theo email hoặc username/MSSV
+    var pending = _pendingPasswordResetOtps[cleanInput];
+    String targetEmail = cleanInput;
+    final matchedUser = findUserByAccountOrEmail(cleanInput);
+    if (matchedUser != null) {
+      targetEmail = matchedUser.email.toLowerCase();
+      pending ??= _pendingPasswordResetOtps[targetEmail];
+    }
+
     if (pending == null) {
       return (
         success: false,
@@ -1100,7 +1226,8 @@ class DataService extends ChangeNotifier {
     }
 
     if (DateTime.now().isAfter(pending.expiry)) {
-      _pendingPasswordResetOtps.remove(cleanEmail);
+      _pendingPasswordResetOtps.remove(cleanInput);
+      _pendingPasswordResetOtps.remove(targetEmail);
       return (
         success: false,
         message: 'Mã OTP đã hết hạn (sau 5 phút). Vui lòng yêu cầu mã mới.',
@@ -1115,14 +1242,22 @@ class DataService extends ChangeNotifier {
     }
 
     // Cập nhật mật khẩu trong danh sách người dùng
-    final userIndex = users.indexWhere((u) => u.email.toLowerCase() == cleanEmail);
+    final userIndex = users.indexWhere((u) =>
+        u.email.toLowerCase() == targetEmail ||
+        u.username.toLowerCase() == cleanInput ||
+        (matchedUser != null && u.id == matchedUser.id));
+
     if (userIndex != -1) {
       final updatedUser = users[userIndex].copyWith(password: cleanNewPassword);
       users[userIndex] = updatedUser;
       _firebaseService.saveUser(updatedUser);
 
       // Xóa mã OTP sau khi sử dụng thành công
-      _pendingPasswordResetOtps.remove(cleanEmail);
+      _pendingPasswordResetOtps.remove(cleanInput);
+      _pendingPasswordResetOtps.remove(targetEmail);
+      if (matchedUser != null) {
+        _pendingPasswordResetOtps.remove(matchedUser.username.toLowerCase());
+      }
       notifyListeners();
 
       return (

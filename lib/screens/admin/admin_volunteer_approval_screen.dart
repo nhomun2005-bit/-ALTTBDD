@@ -33,17 +33,12 @@ class _AdminVolunteerApprovalScreenState extends State<AdminVolunteerApprovalScr
   }
 
   void _showApproveDialog(Registration reg) {
-    String selectedTeam = 'Đội hình Chuyển đổi số & Dạy tin học';
+    final teamCtrl = TextEditingController(
+      text: reg.assignedTeam?.isNotEmpty == true
+          ? reg.assignedTeam!
+          : 'Đội hình Chuyển đổi số & Dạy tin học',
+    );
     final noteCtrl = TextEditingController(text: 'Duyệt tham gia chiến dịch. Đề nghị có mặt đúng giờ.');
-
-    final teams = [
-      'Đội hình Xây dựng công trình thanh niên',
-      'Đội hình Chuyển đổi số & Dạy tin học',
-      'Đội hình Ôn tập văn hóa & Dạy hè',
-      'Đội hình Y tế & Sức khỏe cộng đồng',
-      'Đội hình Đền ơn đáp nghĩa & An sinh xã hội',
-      'Đội hình Hậu cần & Đời sống chiến sĩ',
-    ];
 
     showDialog(
       context: context,
@@ -74,14 +69,12 @@ class _AdminVolunteerApprovalScreenState extends State<AdminVolunteerApprovalScr
                     const Divider(height: 20),
                     const Text('Phân công vào Đội hình chuyên trách *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedTeam,
-                      isExpanded: true,
-                      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-                      items: teams.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 13)))).toList(),
-                      onChanged: (val) {
-                        if (val != null) setDialogState(() => selectedTeam = val);
-                      },
+                    TextField(
+                      controller: teamCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Nhập tên đội hình chuyên trách...',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     const Text('Ghi chú / Hướng dẫn của BCH cho sinh viên', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
@@ -97,11 +90,14 @@ class _AdminVolunteerApprovalScreenState extends State<AdminVolunteerApprovalScr
                 TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
                 ElevatedButton(
                   onPressed: () {
-                    _dataService.approveRegistration(reg.id, selectedTeam, noteCtrl.text.trim());
+                    final assignedTeam = teamCtrl.text.trim().isEmpty
+                        ? 'Đội hình Sinh viên Tình nguyện'
+                        : teamCtrl.text.trim();
+                    _dataService.approveRegistration(reg.id, assignedTeam, noteCtrl.text.trim());
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Đã duyệt sinh viên ${reg.volunteerName} vào "$selectedTeam"!'),
+                        content: Text('Đã duyệt sinh viên ${reg.volunteerName} vào "$assignedTeam"!'),
                         backgroundColor: AppTheme.primaryGreen,
                       ),
                     );

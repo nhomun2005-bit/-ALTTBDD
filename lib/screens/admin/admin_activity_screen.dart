@@ -39,8 +39,8 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
     final targetCtrl = TextEditingController(text: existing != null ? '${existing.targetVolunteers}' : '30');
     final hoursCtrl = TextEditingController(text: existing != null ? '${existing.volunteerHours}' : '40');
     final pointsCtrl = TextEditingController(text: existing != null ? '${existing.trainingPoints}' : '15');
+    final categoryCtrl = TextEditingController(text: existing?.category ?? '');
     
-    String category = existing?.category ?? 'Xây dựng công trình';
     String status = existing?.status ?? 'Đang tuyển';
     String? selectedFacultyId = existing?.facultyId;
     bool isNearCampus = existing?.isNearCampus ?? false;
@@ -82,19 +82,12 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: category,
-                              decoration: const InputDecoration(labelText: 'Mảng hoạt động *'),
-                              items: const [
-                                DropdownMenuItem(value: 'Xây dựng công trình', child: Text('Xây dựng công trình')),
-                                DropdownMenuItem(value: 'Chuyển đổi số', child: Text('Chuyển đổi số')),
-                                DropdownMenuItem(value: 'Dạy học hè', child: Text('Dạy học hè')),
-                                DropdownMenuItem(value: 'Y tế vì cộng đồng', child: Text('Y tế vì cộng đồng')),
-                                DropdownMenuItem(value: 'Đền ơn đáp nghĩa', child: Text('Đền ơn đáp nghĩa')),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) setDialogState(() => category = val);
-                              },
+                            child: TextField(
+                              controller: categoryCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Mảng hoạt động *',
+                                hintText: 'VD: Xây dựng công trình, Chuyển đổi số...',
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -261,9 +254,10 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    if (titleCtrl.text.trim().isEmpty || locationCtrl.text.trim().isEmpty) {
+                    final finalCategory = categoryCtrl.text.trim();
+                    if (titleCtrl.text.trim().isEmpty || locationCtrl.text.trim().isEmpty || finalCategory.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Vui lòng điền đủ tên hoạt động và địa bàn!')),
+                        const SnackBar(content: Text('Vui lòng điền đủ tên hoạt động, mảng hoạt động và địa bàn!')),
                       );
                       return;
                     }
@@ -277,7 +271,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                     final campaign = Campaign(
                       id: existing?.id ?? 'camp_${DateTime.now().millisecondsSinceEpoch}',
                       title: titleCtrl.text.trim(),
-                      category: category,
+                      category: finalCategory,
                       location: locationCtrl.text.trim(),
                       startDate: startDate,
                       endDate: endDate,

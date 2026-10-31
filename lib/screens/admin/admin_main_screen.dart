@@ -438,26 +438,6 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                         ),
                     ],
                   ),
-                  const SizedBox(width: 4),
-
-                  Container(
-                    margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryGreenLight,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.wifi_tethering, size: 14, color: AppTheme.primaryGreenDark),
-                        SizedBox(width: 6),
-                        Text(
-                          'Mạng 3G: Tải siêu tốc 0ms',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreenDark),
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(width: 12),
                 ],
               ),

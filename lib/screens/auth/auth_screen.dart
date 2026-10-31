@@ -760,21 +760,18 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // Hộp thoại khôi phục mật khẩu qua Email OTP
+  // Hộp thoại khôi phục mật khẩu qua Liên kết Email (Firebase Password Reset Link)
   void _showForgotPasswordDialog() {
     final messenger = ScaffoldMessenger.of(context);
-    final emailCtrl = TextEditingController(
-      text: _loginUsernameCtrl.text.contains('@') ? _loginUsernameCtrl.text.trim() : '',
+    final accountCtrl = TextEditingController(
+      text: _loginUsernameCtrl.text.trim(),
     );
-    final otpCtrl = TextEditingController();
-    final newPassCtrl = TextEditingController();
-    final confirmPassCtrl = TextEditingController();
 
-    int step = 1; // 1: Nhập email, 2: Nhập OTP & mật khẩu mới
+    int step = 1; // 1: Nhập tài khoản/email, 2: Xác nhận đã gửi link qua email
     bool isSubmitting = false;
     String? dialogError;
-    bool obscureNewPass = true;
-    bool obscureConfirmPass = true;
+    String? resolvedEmail;
+    String? resolvedUsername;
 
     showDialog(
       context: context,
@@ -797,11 +794,15 @@ class _AuthScreenState extends State<AuthScreen> {
                         children: [
                           Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(
-                              color: AppTheme.primaryGreenLight,
+                            decoration: BoxDecoration(
+                              color: step == 1 ? AppTheme.primaryGreenLight : Colors.blue.shade50,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.lock_reset_rounded, color: AppTheme.primaryGreenDark, size: 24),
+                            child: Icon(
+                              step == 1 ? Icons.lock_reset_rounded : Icons.mark_email_read_rounded,
+                              color: step == 1 ? AppTheme.primaryGreenDark : AppTheme.youthBlue,
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -809,13 +810,13 @@ class _AuthScreenState extends State<AuthScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  step == 1 ? 'Khôi Phục Mật Khẩu' : 'Nhập Mã OTP & Mật Khẩu Mới',
+                                  step == 1 ? 'Khôi Phục Mật Khẩu' : 'Đã Gửi Liên Kết Xác Nhận',
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textDark),
                                 ),
                                 Text(
                                   step == 1
-                                      ? 'Nhận mã xác thực OTP qua Email'
-                                      : 'Xác thực mã 6 số gửi đến ${emailCtrl.text.trim()}',
+                                      ? 'Nhận liên kết đặt lại mật khẩu qua Email'
+                                      : 'Gửi tới ${resolvedEmail ?? accountCtrl.text.trim()}',
                                   style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
                                 ),
                               ],
@@ -850,20 +851,19 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       ],
 
-                      // Bước 1: Nhập email
+                      // Bước 1: Nhập tên tài khoản, MSSV hoặc Email
                       if (step == 1) ...[
                         const Text(
-                          'Nhập địa chỉ email liên kết với tài khoản sinh viên hoặc ban chỉ huy của bạn để nhận mã OTP khôi phục.',
+                          'Nhập Tên tài khoản, MSSV hoặc địa chỉ Email đã đăng ký. Hệ thống sẽ tự động gửi đường dẫn liên kết đặt lại mật khẩu về đúng hòm thư liên kết của tài khoản đó.',
                           style: TextStyle(fontSize: 13, color: AppTheme.textDark, height: 1.4),
                         ),
                         const SizedBox(height: 16),
-                        _buildTextFieldLabel('Địa chỉ Email *'),
+                        _buildTextFieldLabel('Tên tài khoản, MSSV hoặc Email *'),
                         TextFormField(
-                          controller: emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
+                          controller: accountCtrl,
                           decoration: _inputDecoration(
-                            hintText: 'ví dụ: an.nguyen@sinhvien.edu.vn',
-                            prefixIcon: Icons.email_outlined,
+                            hintText: 'ví dụ: annguyen, 22120098 hoặc email@gmail.com',
+                            prefixIcon: Icons.account_circle_outlined,
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -874,9 +874,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             onPressed: isSubmitting
                                 ? null
                                 : () async {
-                                    final email = emailCtrl.text.trim();
-                                    if (email.isEmpty || !email.contains('@')) {
-                                      setModalState(() => dialogError = 'Vui lòng nhập địa chỉ email hợp lệ.');
+                                    final input = accountCtrl.text.trim();
+                                    if (input.isEmpty) {
+                                      setModalState(() => dialogError = 'Vui lòng nhập tên tài khoản hoặc địa chỉ email.');
                                       return;
                                     }
                                     setModalState(() {
@@ -884,11 +884,13 @@ class _AuthScreenState extends State<AuthScreen> {
                                       dialogError = null;
                                     });
 
-                                    final res = await _dataService.sendPasswordResetOtp(email);
+                                    final res = await _dataService.sendPasswordResetEmailLink(input);
                                     setModalState(() => isSubmitting = false);
 
                                     if (res.success) {
                                       setModalState(() {
+                                        resolvedEmail = res.targetEmail;
+                                        resolvedUsername = res.username;
                                         step = 2;
                                         dialogError = null;
                                       });
@@ -904,7 +906,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                   )
                                 : const Icon(Icons.send_rounded, size: 18),
                             label: Text(
-                              isSubmitting ? 'ĐANG GỬI MÃ OTP...' : 'GỬI MÃ XÁC THỰC OTP',
+                              isSubmitting ? 'ĐANG GỬI LIÊN KẾT...' : 'GỬI LIÊN KẾT ĐẶT LẠI MẬT KHẨU',
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             style: ElevatedButton.styleFrom(
@@ -916,150 +918,137 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       ],
 
-                      // Bước 2: Nhập OTP & Mật khẩu mới
+                      // Bước 2: Thông báo đã gửi liên kết thành công
                       if (step == 2) ...[
+                        // Hộp thông tin tài khoản và email liên kết
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
                             color: AppTheme.youthBlueLight,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: Colors.blue.shade200),
                           ),
-                          child: Row(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.mark_email_read_outlined, size: 20, color: AppTheme.youthBlue),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Mã xác thực 6 số đã được gửi tới email ${emailCtrl.text.trim()}. Vui lòng kiểm tra hộp thư đến (hoặc hòm thư Rác / Spam) để lấy mã nhập vào bên dưới (hiệu lực trong 5 phút).',
-                                  style: const TextStyle(fontSize: 12, color: AppTheme.youthBlue, height: 1.4),
-                                ),
+                              Row(
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, size: 18, color: AppTheme.youthBlue),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Thông tin gửi email:',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.youthBlue),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '• Tài khoản: ${resolvedUsername ?? accountCtrl.text.trim()}',
+                                style: const TextStyle(fontSize: 12, color: AppTheme.textDark, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '• Email nhận liên kết: ${resolvedEmail ?? accountCtrl.text.trim()}',
+                                style: const TextStyle(fontSize: 12, color: AppTheme.textDark, fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
                         ),
-                        _buildTextFieldLabel('Mã OTP (6 chữ số) *'),
-                        TextFormField(
-                          controller: otpCtrl,
-                          keyboardType: TextInputType.number,
-                          maxLength: 6,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 6),
-                          decoration: _inputDecoration(
-                            hintText: '123456',
-                            prefixIcon: Icons.pin_outlined,
-                          ).copyWith(counterText: ''),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildTextFieldLabel('Mật khẩu mới (tối thiểu 6 ký tự) *'),
-                        TextFormField(
-                          controller: newPassCtrl,
-                          obscureText: obscureNewPass,
-                          decoration: _inputDecoration(
-                            hintText: 'Nhập mật khẩu mới',
-                            prefixIcon: Icons.lock_outline,
-                            suffixIcon: IconButton(
-                              icon: Icon(obscureNewPass ? Icons.visibility_off : Icons.visibility, size: 18),
-                              onPressed: () => setModalState(() => obscureNewPass = !obscureNewPass),
-                            ),
+
+                        // Hướng dẫn mở email và bấm link
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade300),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildTextFieldLabel('Xác nhận mật khẩu mới *'),
-                        TextFormField(
-                          controller: confirmPassCtrl,
-                          obscureText: obscureConfirmPass,
-                          decoration: _inputDecoration(
-                            hintText: 'Nhập lại mật khẩu mới',
-                            prefixIcon: Icons.lock_outline,
-                            suffixIcon: IconButton(
-                              icon: Icon(obscureConfirmPass ? Icons.visibility_off : Icons.visibility, size: 18),
-                              onPressed: () => setModalState(() => obscureConfirmPass = !obscureConfirmPass),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            TextButton(
-                              onPressed: isSubmitting
-                                  ? null
-                                  : () => setModalState(() {
-                                        step = 1;
-                                        dialogError = null;
-                                      }),
-                              child: const Text('Quay lại', style: TextStyle(color: AppTheme.textMuted)),
-                            ),
-                            const Spacer(),
-                            ElevatedButton(
-                              onPressed: isSubmitting
-                                  ? null
-                                  : () async {
-                                      final otp = otpCtrl.text.trim();
-                                      final newPass = newPassCtrl.text.trim();
-                                      final confirmPass = confirmPassCtrl.text.trim();
-
-                                      if (otp.length != 6) {
-                                        setModalState(() => dialogError = 'Vui lòng nhập đủ 6 chữ số mã OTP.');
-                                        return;
-                                      }
-                                      if (newPass.length < 6) {
-                                        setModalState(() => dialogError = 'Mật khẩu mới phải có tối thiểu 6 ký tự.');
-                                        return;
-                                      }
-                                      if (newPass != confirmPass) {
-                                        setModalState(() => dialogError = 'Mật khẩu xác nhận không khớp.');
-                                        return;
-                                      }
-
-                                      setModalState(() {
-                                        isSubmitting = true;
-                                        dialogError = null;
-                                      });
-
-                                      final res = await _dataService.verifyOtpAndResetPassword(
-                                        email: emailCtrl.text.trim(),
-                                        otp: otp,
-                                        newPassword: newPass,
-                                      );
-
-                                      setModalState(() => isSubmitting = false);
-
-                                      if (res.success) {
-                                        if (dialogCtx.mounted) {
-                                          Navigator.pop(dialogCtx);
-                                        }
-                                        _loginUsernameCtrl.text = emailCtrl.text.trim();
-                                        _loginPasswordCtrl.text = newPass;
-                                        if (mounted) {
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text(res.message),
-                                              backgroundColor: AppTheme.primaryGreenDark,
-                                              behavior: SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        }
-                                      } else {
-                                        setModalState(() => dialogError = res.message);
-                                      }
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryGreen,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'Các bước tiếp theo:',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
                               ),
-                              child: isSubmitting
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Text('ĐỔI MẬT KHẨU', style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 8),
+                              Text(
+                                '1. Mở ứng dụng Gmail hoặc hòm thư của bạn.\n'
+                                '2. Tìm email từ "duanmuahexanh" (kiểm tra cả mục Hộp thư đến và Thư rác / Spam).\n'
+                                '3. Nhấn vào đường liên kết (Link) trong thư để đặt mật khẩu mới trên trình duyệt web.\n'
+                                '4. Sau khi đổi mật khẩu xong, quay lại ứng dụng để đăng nhập bằng mật khẩu mới.',
+                                style: TextStyle(fontSize: 12, color: AppTheme.textDark, height: 1.5),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Nút Quay lại đăng nhập
+                        SizedBox(
+                          width: double.infinity,
+                          height: 46,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(dialogCtx);
+                              _loginUsernameCtrl.text = resolvedUsername ?? resolvedEmail ?? accountCtrl.text.trim();
+                              _loginPasswordCtrl.clear();
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Vui lòng kiểm tra email ${resolvedEmail ?? accountCtrl.text.trim()} để đặt lại mật khẩu.',
+                                  ),
+                                  backgroundColor: AppTheme.primaryGreenDark,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.login_rounded, size: 18),
+                            label: const Text(
+                              'ĐÃ HIỂU - QUAY LẠI ĐĂNG NHẬP',
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
-                          ],
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryGreen,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Nút gửi lại email nếu chưa nhận được
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    setModalState(() {
+                                      isSubmitting = true;
+                                      dialogError = null;
+                                    });
+                                    final res = await _dataService.sendPasswordResetEmailLink(
+                                      resolvedEmail ?? accountCtrl.text.trim(),
+                                    );
+                                    setModalState(() => isSubmitting = false);
+                                    if (res.success) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text('Đã gửi lại liên kết tới ${resolvedEmail ?? accountCtrl.text.trim()}!'),
+                                          backgroundColor: AppTheme.primaryGreenDark,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    } else {
+                                      setModalState(() => dialogError = res.message);
+                                    }
+                                  },
+                            icon: const Icon(Icons.refresh_rounded, size: 16, color: AppTheme.textMuted),
+                            label: const Text(
+                              'Chưa nhận được email? Gửi lại liên kết',
+                              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                            ),
+                          ),
                         ),
                       ],
                     ],
