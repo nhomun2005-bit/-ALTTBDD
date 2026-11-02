@@ -105,21 +105,37 @@ class _AdminBudgetLogisticsScreenState extends State<AdminBudgetLogisticsScreen>
     );
   }
 
-  void _showAddLogisticsItemDialog(ActivityBudgetLogistics data) {
-    final nameCtrl = TextEditingController();
-    final qtyCtrl = TextEditingController(text: '10');
-    final unitCtrl = TextEditingController(text: 'Cái');
-    final noteCtrl = TextEditingController(text: 'Đã sẵn sàng bàn giao cho đội');
+  void _showAddEditLogisticsItemDialog(ActivityBudgetLogistics data, {LogisticsItem? existingItem, int? itemIndex}) {
+    final isEdit = existingItem != null;
+    final nameCtrl = TextEditingController(text: existingItem?.itemName ?? '');
+    final qtyCtrl = TextEditingController(text: existingItem != null ? '${existingItem.quantity}' : '10');
+    final unitCtrl = TextEditingController(text: existingItem?.unit ?? 'Cái');
+    final noteCtrl = TextEditingController(text: existingItem?.note ?? 'Đã sẵn sàng bàn giao cho đội');
 
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.inventory_2_outlined, color: AppTheme.primaryGreen),
-              SizedBox(width: 8),
-              Text('Thêm Vật Tư Hậu Cần Biểu Mẫu', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Icon(isEdit ? Icons.edit_note_outlined : Icons.inventory_2_outlined, color: AppTheme.primaryGreen),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isEdit ? 'Chỉnh Sửa Vật Tư Hậu Cần' : 'Thêm Vật Tư Hậu Cần',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Hoạt động: ${data.campaignTitle}',
+                      style: const TextStyle(fontSize: 12, color: AppTheme.youthBlue, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           content: Column(
@@ -170,7 +186,13 @@ class _AdminBudgetLogisticsScreenState extends State<AdminBudgetLogisticsScreen>
                   note: noteCtrl.text.trim(),
                 );
 
-                final updatedItems = List<LogisticsItem>.from(data.logisticsItems)..add(newItem);
+                final updatedItems = List<LogisticsItem>.from(data.logisticsItems);
+                if (isEdit && itemIndex != null && itemIndex < updatedItems.length) {
+                  updatedItems[itemIndex] = newItem;
+                } else {
+                  updatedItems.add(newItem);
+                }
+
                 final updated = data.copyWith(
                   logisticsItems: updatedItems,
                   lastUpdated: DateTime.now(),
@@ -178,17 +200,60 @@ class _AdminBudgetLogisticsScreenState extends State<AdminBudgetLogisticsScreen>
                 _dataService.updateBudgetLogistics(updated);
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Đã thêm vật tư hậu cần vào biểu mẫu theo dõi!'),
+                  SnackBar(
+                    content: Text(isEdit
+                        ? 'Đã cập nhật thông tin vật tư "${newItem.itemName}"!'
+                        : 'Đã thêm vật tư hậu cần vào biểu mẫu theo dõi!'),
                     backgroundColor: AppTheme.primaryGreen,
                   ),
                 );
               },
-              child: const Text('Thêm Vào Biểu Mẫu'),
+              child: Text(isEdit ? 'Lưu Thay Đổi' : 'Thêm Vào Biểu Mẫu'),
             ),
           ],
         );
       },
+    );
+  }
+
+  void _confirmDeleteLogisticsItem(ActivityBudgetLogistics data, int itemIndex) {
+    if (itemIndex < 0 || itemIndex >= data.logisticsItems.length) return;
+    final item = data.logisticsItems[itemIndex];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline, color: AppTheme.dangerRed),
+            SizedBox(width: 8),
+            Text('Xác Nhận Xóa Vật Tư', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text('Bạn có chắc chắn muốn xóa vật tư "${item.itemName}" khỏi danh mục hậu cần không?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.dangerRed),
+            onPressed: () {
+              final updatedItems = List<LogisticsItem>.from(data.logisticsItems)..removeAt(itemIndex);
+              final updated = data.copyWith(
+                logisticsItems: updatedItems,
+                lastUpdated: DateTime.now(),
+              );
+              _dataService.updateBudgetLogistics(updated);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Đã xóa vật tư "${item.itemName}" thành công!'),
+                  backgroundColor: AppTheme.dangerRed,
+                ),
+              );
+            },
+            child: const Text('Xác Nhận Xóa', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -386,11 +451,14 @@ class _AdminBudgetLogisticsScreenState extends State<AdminBudgetLogisticsScreen>
                       children: [
                         const Icon(Icons.checklist_rounded, color: AppTheme.primaryGreen, size: 20),
                         const SizedBox(width: 8),
-                        const Text(
-                          'Danh Mục Vật Tư Hậu Cần Theo Biểu Mẫu Thống Nhất',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        Expanded(
+                          child: Text(
+                            'Danh Mục Vật Tư Của Hoạt Động: ${data.campaignTitle}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         OutlinedButton.icon(
                           onPressed: () => _showEditBudgetDialog(data),
                           icon: const Icon(Icons.edit, size: 14),
@@ -398,7 +466,7 @@ class _AdminBudgetLogisticsScreenState extends State<AdminBudgetLogisticsScreen>
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton.icon(
-                          onPressed: () => _showAddLogisticsItemDialog(data),
+                          onPressed: () => _showAddEditLogisticsItemDialog(data),
                           icon: const Icon(Icons.add, size: 14),
                           label: const Text('Thêm vật tư', style: TextStyle(fontSize: 12)),
                         ),
@@ -408,7 +476,19 @@ class _AdminBudgetLogisticsScreenState extends State<AdminBudgetLogisticsScreen>
                   const Divider(height: 1),
                   Expanded(
                     child: data.logisticsItems.isEmpty
-                        ? const Center(child: Text('Chưa có danh mục vật tư nào trong biểu mẫu'))
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.inventory_2_outlined, size: 40, color: Colors.grey),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Hoạt động "${data.campaignTitle}" chưa có vật tư nào được phân bổ.',
+                                  style: const TextStyle(color: AppTheme.textMuted),
+                                ),
+                              ],
+                            ),
+                          )
                         : ListView.separated(
                             itemCount: data.logisticsItems.length,
                             separatorBuilder: (_, _) => const Divider(height: 1),
@@ -431,16 +511,40 @@ class _AdminBudgetLogisticsScreenState extends State<AdminBudgetLogisticsScreen>
                                 ),
                                 title: Text(item.itemName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                                 subtitle: Text('Trạng thái: ${item.note}', style: const TextStyle(fontSize: 12)),
-                                trailing: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryGreenLight,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '${item.quantity} ${item.unit}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryGreenDark, fontSize: 13),
-                                  ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryGreenLight,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '${item.quantity} ${item.unit}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primaryGreenDark,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.youthBlue),
+                                      tooltip: 'Sửa vật tư',
+                                      onPressed: () => _showAddEditLogisticsItemDialog(
+                                        data,
+                                        existingItem: item,
+                                        itemIndex: index,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.dangerRed),
+                                      tooltip: 'Xóa vật tư',
+                                      onPressed: () => _confirmDeleteLogisticsItem(data, index),
+                                    ),
+                                  ],
                                 ),
                               );
                             },
